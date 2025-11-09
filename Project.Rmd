@@ -86,6 +86,17 @@ $$
 
 A Bartlett’s test was conducted to evaluate this assumption. 
 
+$$
+\\k = \text{number of factors} = 1
+\\n_i = \text{size of group i}
+\\v_i = (n_i - k) = (n_i -1)
+
+$$
+
+$$
+Bstat = \frac{v * ln(s_p^2) - (\sum_{i=1}^{g}v_i * ln(s_i^2) )}{1 + \frac{1}{3(g-1)}* [(\sum_{i=1}^{g} \frac{1}{v_i})- \frac{1}{v}]}
+$$
+
 ```{r 4}
 xs = split(x, mydata_2005$Continent)
 xbarj = sapply(xs, mean)
