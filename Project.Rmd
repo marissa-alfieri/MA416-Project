@@ -464,3 +464,102 @@ The bootstrap interval ranged from 3.16 to 6.61 years, which excludes 0, confirm
 > 
 
 ## Section 3 – Life Expectancy and CO2 Emissions
+
+After examining differences across continents and changes over time, we wanted to understand what factors might influence life expectancy. CO₂ emissions can serve as an indicator of industrial development, which typically brings better infrastructure and healthcare. We used bootstrap regression to estimate the relationship between CO₂ emissions and life expectancy.
+
+Our hypotheses were:
+
+$$
+H_0: \beta_1 = 0 \text{ (no relationship between CO₂ and life expectancy)} \\
+H_a: \beta_1 \neq 0 \text{ (a relationship exists)}
+$$
+
+### **Data**
+
+```{r s3.plot, fig.width=7, fig.height=5}
+data_clean = data[is.finite(data$`CO2 emissions`) & 
+                  is.finite(data$`Life Expectancy`), ]
+plot(data_clean$`CO2 emissions`, data_clean$`Life Expectancy`,
+     xlab = "CO2 Emissions (metric tons per capita)",
+     ylab = "Life Expectancy (years)",
+     main = "Life Expectancy vs. CO2 Emissions",
+     pch = 16,
+     col = rgb(0, 0, 0, 0.3),
+     cex = 0.8)
+```
+
+### **Bootstrap Confidence Intervals**
+
+We used bootstrap resampling to construct confidence intervals for the regression coefficients. This non-parametric method does not assume normality of residuals.
+
+For a linear regression model:
+
+$$
+\hat{y} = \beta_0 + \beta_1 x
+$$ $$
+\beta_1 = r_{xy} \cdot \frac{s_y}{s_x} \quad \text{and} \quad \beta_0 = \bar{y} - \beta_1 \bar{x}
+$$
+
+```{r s3.bootstrap}
+set.seed(123)
+nboot = 10000
+
+X = data_clean$`CO2 emissions`
+Y = data_clean$`Life Expectancy`
+n = length(X)
+
+mybhat1 = c()
+mybhat0 = c()
+
+myindex = seq(1, n, 1)
+
+for(k in 1:nboot){
+  sboot = sample(myindex, n, replace = T)
+  Xboot = X[sboot]
+  Yboot = Y[sboot]
+  
+  bhat1 = cor(Xboot, Yboot) * sd(Yboot) / sd(Xboot)
+  bhat0 = mean(Yboot) - bhat1 * mean(Xboot)
+  
+  mybhat1 = c(mybhat1, bhat1)
+  mybhat0 = c(mybhat0, bhat0)
+}
+
+alpha = 0.10
+cibhat1 = quantile(mybhat1, c(alpha/2, 1-alpha/2))
+cibhat0 = quantile(mybhat0, c(alpha/2, 1-alpha/2))
+```
+
+```{r s3.results, echo=FALSE}
+cat("90% Confidence Interval for Slope (β₁):\n")
+cat("  [", round(cibhat1[1], 4), ",", round(cibhat1[2], 4), "]\n\n")
+
+cat("90% Confidence Interval for Intercept (β₀):\n")
+cat("  [", round(cibhat0[1], 4), ",", round(cibhat0[2], 4), "]\n")
+```
+
+### **Bootstrap Distributions**
+
+```{r s3.histograms, fig.width=10, fig.height=5}
+par(mfrow = c(1, 2))
+
+hist(mybhat1, 
+     breaks = 30, 
+     col = "steelblue",
+     main = "Bootstrap Distribution of Slope",
+     xlab = "Slope (β₁)",
+     ylab = "Frequency")
+abline(v = cibhat1, col = "red", lwd = 2, lty = 2)
+
+hist(mybhat0, 
+     breaks = 30, 
+     col = "seagreen",
+     main = "Bootstrap Distribution of Intercept",
+     xlab = "Intercept (β₀)",
+     ylab = "Frequency")
+abline(v = cibhat0, col = "red", lwd = 2, lty = 2)
+```
+
+The histograms show the distributions of 10,000 bootstrap estimates. The red dashed lines indicate the 90% confidence interval bounds.
+
+The 90% confidence interval for the slope does not contain zero, indicating a statistically significant positive relationship between CO₂ emissions and life expectancy. Countries with higher CO₂ emissions tend to have longer life expectancies, likely because emissions correlate with industrial development, which brings better healthcare infrastructure and living standards.
