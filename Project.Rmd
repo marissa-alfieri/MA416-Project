@@ -477,9 +477,13 @@ $$
 ### **Data**
 
 ```{r s3.plot, fig.width=7, fig.height=5}
-data_clean = data[is.finite(data$`CO2 emissions`) & 
-                  is.finite(data$`Life Expectancy`), ]
-plot(data_clean$`CO2 emissions`, data_clean$`Life Expectancy`,
+CO2_data = data[, 6]    
+Life_data = data[, 4]  
+valid = is.finite(CO2_data) & is.finite(Life_data)
+CO2_clean = CO2_data[valid]
+Life_clean = Life_data[valid]
+
+plot(CO2_clean, Life_clean,
      xlab = "CO2 Emissions (metric tons per capita)",
      ylab = "Life Expectancy (years)",
      main = "Life Expectancy vs. CO2 Emissions",
@@ -504,8 +508,8 @@ $$
 set.seed(123)
 nboot = 10000
 
-X = data_clean$`CO2 emissions`
-Y = data_clean$`Life Expectancy`
+X = CO2_clean
+Y = Life_clean
 n = length(X)
 
 mybhat1 = c()
