@@ -1,0 +1,62 @@
+---
+title: "Project 2"
+output: pdf_document
+date: "2025-12-04"
+---
+
+
+```{r}
+data= read.csv("Life_Expectancy_00_15.csv", sep = ";")
+Y = data$Life.Expectancy
+X1 = data$CO2.emissions
+X2 = data$Health.expenditure
+X3 = data$Obesity.among.adults
+C = model.matrix(~ Continent, data)[ , -1]     
+D  = model.matrix(~ Least.Developed, data)[ , -1]   
+X = cbind(1, X1, X2, X3, X4, C, D)
+p = ncol(X) - 1   
+
+
+
+sortx = sort(std_res)
+nj = length(sortx)
+F_emp = (1:nj)/(nj+1)
+f_null = pnorm(sortx, mean(std_res), sd(std_res))
+cvm = sum(abs(F_emp - f_null)^2)
+cvm 
+
+set.seed(123)
+nmc= 15000
+mc_cvm = c()
+for(k in 1:nmc){
+  smc = rnorm(nj, 0, 1)
+  smc = sort(smc)
+  fxmc = (1:nj)/(nj+1)
+  psixmc = pnorm(smc, 0, 1)
+  mc_cvm = c(mc_cvm, sum((fxmc - psixmc)^2))
+}
+
+crit = quantile(mc_cvm, 1-.075)
+crit
+pval = mean(mc_cvm >= cvm)
+pval
+
+
+
+
+
+
+beta_hat = solve(t(X) %*% X) %*% (t(X) %*% Y)
+beta_CO2 = beta_hat[1]
+beta_CO2
+
+Y_hat = X %*% beta_hat
+res = Y - Y_hat
+n = length(Y)
+
+sigma2_hat = sum(res^2) / (n - p - 1)
+Var_beta = sigma2_hat * solve(t(X) %*% X)
+
+SE_CO2 = sqrt(Var_beta[5,5])
+SE_CO2
+```

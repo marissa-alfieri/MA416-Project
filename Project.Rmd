@@ -1,6 +1,6 @@
 ---
 title: "Life Expectancy Trends (2000-2015)"
-author: "Marissa Alfieri, Jenny Zheng, Letitia Caspersen"
+author: "Marissa Alfieri"
 date: "2025-11-11"
 output:
   pdf_document:
@@ -9,7 +9,7 @@ output:
 
 ## Introduction
 
-Life expectancy says a lot about how people live and the conditions they face around the world. In this project, we wanted to look at how life expectancy differs across continents and how it changes over time. In order to establish a baseline, we started by checking whether continents already had different average life expectancies in the year 2000. Then we tested if the average life expectancies changed from the years 2000 to 2015. Lastly, we wanted to see if life expectancy correlates to CO2 emissions.
+Life expectancy says a lot about how people live and the conditions they face around the world. In this project, I wanted to look at how life expectancy differs across continents and how it changes over time. In order to establish a baseline, I started by checking whether continents already had different average life expectancies in the year 2000. Then I tested if the average life expectancies changed from the years 2000 to 2015. Lastly, I wanted to see if life expectancy correlates to CO2 emissions.
 
 The main goal is to understand whether there are significant differences in life expectancy across regions and time, which could reflect global inequality.
 
@@ -21,9 +21,9 @@ data = read.csv("Life_Expectancy.csv")
 
 ## Section 1 – Comparing Continents in 2000
 
-We wanted to start by establishing a baseline in life expectancy across continents at the start of the 21st century.
+I wanted to start by establishing a baseline in life expectancy across continents at the start of the 21st century.
 
-Our hypotheses were:
+The hypotheses were:
 
 > $H_0: \text{The average life expectancies are the same across all continents.}$
 >
@@ -31,7 +31,7 @@ Our hypotheses were:
 
 ### **Checking The Assumptions**
 
-We planned to test this using a one-way ANOVA, so we first checked whether the assumptions of normality and homoscedasticity were met.
+I planned to test this using a one-way ANOVA, so I first checked whether the assumptions of normality and homoscedasticity were met.
 
 #### **1. Normality**
 
@@ -39,7 +39,7 @@ We planned to test this using a one-way ANOVA, so we first checked whether the a
 >
 > $\ H_a: \text{The life expectancy values within at least one continent deviate from normality.}$
 
-For normality, we visually inspected histograms of life expectancy for each continent.
+For normality, I visually inspected histograms of life expectancy for each continent.
 
 ```{r, fig.width=8, fig.height=6, echo=FALSE}
 data_2000 = subset(data, Year == 2000)
@@ -62,9 +62,9 @@ subset_data=data_2000$Life.Expectancy[data_2000$Continent == c]
 
 ```
 
-Visual inspection of the histograms suggested that the distributions were varied, with some having approximately bell shaped curves, some with unique distributions, and some skewed. To confirm normality statistically, we used a Monte Carlo Anderson–Darling test.
+Visual inspection of the histograms suggested that the distributions were varied, with some having approximately bell shaped curves, some with unique distributions, and some skewed. To confirm normality statistically, I used a Monte Carlo Anderson–Darling test.
 
-This test measures how far the observed data deviates from what would be expected under a normal distribution with the same mean and standard deviation. Comparing our observed statistic to this simulated one let us estimate the p-value and decide whether the normality assumption held.
+This test measures how far the observed data deviates from what would be expected under a normal distribution with the same mean and standard deviation. Comparing the observed statistic to this simulated one let me estimate the p-value and decide whether the normality assumption held.
 
 ```{r mc.ad}
 set.seed(123123)
@@ -93,7 +93,7 @@ emp_pval = mean(mc_ad >= AD_obs)
 cat("Anderson–Darling Critical Value:", ad_crit, "\n", "Empirical P-Value:", emp_pval, "\n")
 ```
 
-The Anderson–Darling test gave an empirical p-value of 0.0004, which is below the alpha level of 0.10. This means we reject the null hypothesis of normality. So, the life expectancy data for 2000 aren’t normally distributed. This makes sense because some continents have much higher averages while others are lower, so the data are naturally skewed instead of bell-shaped. Before deciding how to move forward, we also wanted to check whether the variability between groups was similar, because large differences in spread can also affect ANOVA results.
+The Anderson–Darling test gave an empirical p-value of 0.0004, which is below the alpha level of 0.10. This means I reject the null hypothesis of normality. So, the life expectancy data for 2000 aren’t normally distributed. This makes sense because some continents have much higher averages while others are lower, so the data are naturally skewed instead of bell-shaped. Before deciding how to move forward, I also wanted to check whether the variability between groups was similar, because large differences in spread can also affect ANOVA results.
 
 #### **2. Testing Homoscedasticity**
 
@@ -103,13 +103,13 @@ Equal variances (homoscedasticity) matters because ANOVA assumes that all groups
 >
 > $\ H_a: \text{At least one group’s variance differs.}$
 
-We used the Bartlett statistic, which tests whether the variances of life expectancy across groups ($j$) are equal. It compares each group’s sample variance ($s_j^2$) to the pooled variance ($s_p^2$) that would be expected if all groups had the same variability. The Bartlett statistic ($B_{\text{stat}}$) is computed as:
+I used the Bartlett statistic, which tests whether the variances of life expectancy across groups ($j$) are equal. It compares each group’s sample variance ($s_j^2$) to the pooled variance ($s_p^2$) that would be expected if all groups had the same variability. The Bartlett statistic ($B_{\text{stat}}$) is computed as:
 
 $$
 Bstat = \frac{v * ln(s_p^2) - (\sum_{j=1}^{g}v_j * ln(s_j^2) )}{1 + \frac{1}{3(g-1)}* [(\sum_{j=1}^{g} \frac{1}{v_j})- \frac{1}{v}]}
 $$
 
-First, we split the dataset by continent so that we could calculate each group’s mean, variance, and sample size:
+First, I split the dataset by continent so that I could calculate each group’s mean, variance, and sample size:
 
 ```{r 1.1}
 xs = split(x, data_2000$Continent)
@@ -118,14 +118,14 @@ s2j = sapply(xs, var)
 nj= sapply (xs, length)
 ```
 
-Each continent’s variance ($s_j^2$) represents how spread out its life expectancy values are. Then we calculated each group’s degrees of freedom ($v_j=n_j-1$) and counted the number of groups ($g$):
+Each continent’s variance ($s_j^2$) represents how spread out its life expectancy values are. Then I calculated each group’s degrees of freedom ($v_j=n_j-1$) and counted the number of groups ($g$):
 
 ```{r 1.2}
 vj= nj-1
 g= length(unique(data_2000$Continent))
 ```
 
-Next, we computed the pooled variance, which combines the group variances into a single weighted value based on their degrees of freedom: 
+Next, I computed the pooled variance, which combines the group variances into a single weighted value based on their degrees of freedom: 
 $$
 s_p^2=\frac{\sum_{j=1}^{g}v_js_j^2}{\sum_{j=1}^{g}v_j}
 $$
@@ -134,7 +134,7 @@ $$
 sp2 = sum(vj * s2j)/ sum(vj)
 ```
 
-After defining the components for each continent (sample variance $s_j^2$, degrees of freedom $v_j$, and the number of groups $g$), we computed the Bartlett statistic:
+After defining the components for each continent (sample variance $s_j^2$, degrees of freedom $v_j$, and the number of groups $g$), I computed the Bartlett statistic:
 
 ```{r 1.4}
 bastat = ((sum(vj) * log(sp2)) - sum(vj * log(s2j)))/
@@ -147,11 +147,11 @@ pval = pchisq(bastat, g-1, lower.tail= F)
 cat("Bartlett’s Test Statistic:",bastat, "\n", "Bartlett’s Test P-Value:", pval, "\n")
 ```
 
-The Bartlett’s test returned a test statistic of 26.51 and a p-value of 0.0001, which is below the alpha level of 0.10. This means we reject the null hypothesis and conclude that the variances of life expectancy are not equal across continents.
+The Bartlett’s test returned a test statistic of 26.51 and a p-value of 0.0001, which is below the alpha level of 0.10. This means I reject the null hypothesis and conclude that the variances of life expectancy are not equal across continents.
 
 ### Welch's One-Factor ANOVA
 
-Because Bartlett’s test indicated that the variances across continents were not equal, we used Welch’s ANOVA, which adjusts for unequal variances and sample sizes.
+Because Bartlett’s test indicated that the variances across continents were not equal, I used Welch’s ANOVA, which adjusts for unequal variances and sample sizes.
 
 > $H_0: \mu_{\text{Africa}} = \mu_{\text{Asia}} = \mu_{\text{Europe}} = \mu_{\text{North America}}= \mu_{\text{South America}}= \mu_{\text{Oceania}}$
 >
@@ -183,13 +183,13 @@ p = pf(Fstat_h, g-1, v_h, lower.tail=F)
 cat("F Statistic:", Fstat_h, "\n", "P Value:", p, "\n")
 ```
 
-At an alpha level of 0.10, the p-value (0.0679) is slightly below the cutoff. Therefore, we fail to reject the null hypothesis, meaning that when adjusting for unequal variances, there is no statistically significant difference in mean life expectancy across continents.
+At an alpha level of 0.10, the p-value (0.0679) is slightly below the cutoff. Therefore, I fail to reject the null hypothesis, meaning that when adjusting for unequal variances, there is no statistically significant difference in mean life expectancy across continents.
 
-However, since the data were not normally distributed, we could not fully rely on the results of Welch’s ANOVA.
+However, since the data were not normally distributed, I could not fully rely on the results of Welch’s ANOVA.
 
 ### **Kruskal–Wallis Test**
 
-To confirm whether the previous conclusion holds, we used the Kruskal–Wallis test, a non-parametric alternative that compares the median ranks instead of the means.
+To confirm whether the previous conclusion holds, I used the Kruskal–Wallis test, a non-parametric alternative that compares the median ranks instead of the means.
 
 The hypotheses are:
 
@@ -197,7 +197,7 @@ The hypotheses are:
 >
 > $H_a: \text{At least one continent differs.}$
 
-We used the Kruskal–Wallis statistic, which tests whether the distributions of life expectancy across groups ($j$) are the same. It ranks all observations together, then compares the average rank within each group ($\bar{R}_j$) to the overall mean rank ($\bar{R}$). If the group ranks differ a lot, it suggests that at least one continent’s distribution is different. The Kruskal–Wallis statistic ($H$) is computed as:
+I used the Kruskal–Wallis statistic, which tests whether the distributions of life expectancy across groups ($j$) are the same. It ranks all observations together, then compares the average rank within each group ($\bar{R}_j$) to the overall mean rank ($\bar{R}$). If the group ranks differ a lot, it suggests that at least one continent’s distribution is different. The Kruskal–Wallis statistic ($H$) is computed as:
 
 $$
 H = \frac{12}{N(N + 1)} \sum_{j=1}^{g} n_j (\bar{R}_j - \bar{R})^2
@@ -220,15 +220,15 @@ pval_kw = pchisq(H_stat, g - 1, lower.tail = FALSE)
 cat("Kruskal–Wallis H Statistic:", H_stat, "\n", "P-Value:", pval_kw, "\n")
 ```
 
-The Kruskal–Wallis test returned an $H$ statistic of 65.03 with a p-value of 1.10 **×** 10⁻¹², which is below the alpha level of 0.10. This means we reject the null hypothesis and conclude that life expectancy distributions differ significantly across continents in the year 2000.
+The Kruskal–Wallis test returned an $H$ statistic of 65.03 with a p-value of 1.10 **×** 10⁻¹², which is below the alpha level of 0.10. This means I reject the null hypothesis and conclude that life expectancy distributions differ significantly across continents in the year 2000.
 
 This confirmed that regional inequality in life expectancy was already present at the start of the century.
 
 ## Section 2 – Comparing Continents from 2000-2015
 
-After finding that life expectancy differed across continents in 2000, we wanted to see whether those differences changed over time from 2000 to 2015.
+After finding that life expectancy differed across continents in 2000, I wanted to see whether those differences changed over time from 2000 to 2015.
 
-Our hypotheses were:
+The hypotheses were:
 
 > $H_0: \mu_{\text{2000}} = \mu_{\text{2001}} = \mu_{\text{2002}} = \dots = \mu_{\text{2015}}$
 >
@@ -236,7 +236,7 @@ Our hypotheses were:
 
 ### **Checking The Assumptions**
 
-We planned to test this using a repeated-measures ANOVA, so we first checked whether the assumptions of normality and sphericity were met.
+I planned to test this using a repeated-measures ANOVA, so I first checked whether the assumptions of normality and sphericity were met.
 
 #### **1. Normality**
 
@@ -244,7 +244,7 @@ We planned to test this using a repeated-measures ANOVA, so we first checked whe
 >
 > $H_a: \text{The life expectancy values deviate from normality.}$
 
-To test this, we used the Kolmogorov–Smirnov test, which compares the sample’s cumulative distribution to a normal distribution with the same mean and standard deviation.
+To test this, I used the Kolmogorov–Smirnov test, which compares the sample’s cumulative distribution to a normal distribution with the same mean and standard deviation.
 
 The KS statistic ($D$) is computed as:
 
@@ -282,7 +282,7 @@ emp_pval = mean(KS_mc >= KS_obs)
 cat("Kolmogorov–Smirnov Critical Value:", KS_crit, "\n", "Empirical P-Value:", emp_pval, "\n")
 ```
 
-The Kolmogorov–Smirnov test gave a critical value of 0.0279 and an empirical p-value of 0, which is below the alpha level of 0.10. This means we reject the null hypothesis of normality. Before deciding how to move forward, we also wanted to check the assumption of sphericity, which deals with the relationships between repeated measurements over time.
+The Kolmogorov–Smirnov test gave a critical value of 0.0279 and an empirical p-value of 0, which is below the alpha level of 0.10. This means I reject the null hypothesis of normality. Before deciding how to move forward, I also wanted to check the assumption of sphericity, which deals with the relationships between repeated measurements over time.
 
 #### **2. Sphericity**
 
@@ -293,7 +293,7 @@ Sphericity assumes that the variances of the differences between every pair of y
 >
 > $H_a: \text{At least one pair of years differs in variance of differences.}$
 
-We computed Mauchly’s test to evaluate the sphericity assumption. This test measures whether the covariance matrix of repeated measures is close to spherical.
+I computed Mauchly’s test to evaluate the sphericity assumption. This test measures whether the covariance matrix of repeated measures is close to spherical.
 
 The Mauchly statistic ($W$) is calculated as: $$
 W = \frac{|\Sigma|}{\left( \frac{\text{tr}(\Sigma)}{k} \right)^k}
@@ -330,11 +330,11 @@ Mpval = pchisq(Mstat, df,lower.tail = F)
 cat("Mauchly's Test Statistic:", Mstat, "\n", "Mauchly's Test P-Value:", Mpval, "\n")
 ```
 
-The Mauchly’s test of sphericity returned a test statistic of 2119.99 and a p-value of 0, which is below the alpha level of 0.10. This means we reject the null hypothesis of sphericity. So, the variances of the differences between years are not equal, meaning that the correlations between time points vary.
+The Mauchly’s test of sphericity returned a test statistic of 2119.99 and a p-value of 0, which is below the alpha level of 0.10. This means I reject the null hypothesis of sphericity. So, the variances of the differences between years are not equal, meaning that the correlations between time points vary.
 
 ### **Non-Spherical Repeated-Measures ANOVA**
 
-Since Mauchly’s test showed that the data violated sphericity, we used the Greenhouse–Geisser correction to adjust the repeated-measures ANOVA.
+Since Mauchly’s test showed that the data violated sphericity, I used the Greenhouse–Geisser correction to adjust the repeated-measures ANOVA.
 
 > $H_0: \mu_{\text{2000}} = \mu_{\text{2001}} = \mu_{\text{2002}} = \dots = \mu_{\text{2015}}$
 >
@@ -380,13 +380,13 @@ p_GG = pf(Fstat, df1_GG, df2_GG, lower.tail = FALSE)
 cat("F Statistic:", Fstat, "\n", "P-Value:", p_GG, "\n")
 ```
 
-After applying the correction, the results showed a significant main effect of year, *p* = 0.0047. This means we reject the null hypothesis and conclude that mean life expectancy differed across at least one year between 2000 and 2015.
+After applying the correction, the results showed a significant main effect of year, *p* = 0.0047. This means I reject the null hypothesis and conclude that mean life expectancy differed across at least one year between 2000 and 2015.
 
 ### **Bootstrap Confidence Interval**
 
-Since the Kolmogorov–Smirnov test showed that the data were not normally distributed, we can’t fully rely on the repeated-measures ANOVA results. So, we used a bootstrap confidence interval to check whether mean life expectancy changed between 2000 and 2015.
+Since the Kolmogorov–Smirnov test showed that the data were not normally distributed, I can’t fully rely on the repeated-measures ANOVA results. So, I used a bootstrap confidence interval to check whether mean life expectancy changed between 2000 and 2015.
 
-By resampling the data 10,000 times and recalculating the mean difference each time, the bootstrap method builds an empirical distribution of possible mean changes. This lets us estimate a confidence interval without assuming that the data are normal.
+By resampling the data 10,000 times and recalculating the mean difference each time, the bootstrap method builds an empirical distribution of possible mean changes. This lets me estimate a confidence interval without assuming that the data are normal.
 
 ```{r boot}
 set.seed(123123)
@@ -415,9 +415,9 @@ The bootstrap interval ranged from 3.16 to 6.61 years, which excludes 0, confirm
 
 ## Section 3 – Life Expectancy and CO2 Emissions
 
-After examining differences across continents and changes over time, we wanted to understand what factors might influence life expectancy. CO₂ emissions can serve as an indicator of industrial development, which typically brings better infrastructure and healthcare. We used bootstrap regression to estimate the relationship between CO₂ emissions and life expectancy.
+After examining differences across continents and changes over time, I wanted to understand what factors might influence life expectancy. CO₂ emissions can serve as an indicator of industrial development, which typically brings better infrastructure and healthcare. I used bootstrap regression to estimate the relationship between CO₂ emissions and life expectancy.
 
-Our hypotheses were:
+The hypotheses were:
 
 
 > $H_0: \beta_1 = 0 \text{ (no relationship between CO₂ and life expectancy)}$
@@ -437,7 +437,7 @@ plot(data$CO2.emissions, data$Life.Expectancy,
 
 ### **Bootstrap Confidence Intervals**
 
-We used bootstrap resampling to construct confidence intervals for the regression coefficients. This non-parametric method does not assume normality of residuals.
+I used bootstrap resampling to construct confidence intervals for the regression coefficients. This non-parametric method does not assume normality of residuals.
 
 For a linear regression model:
 
