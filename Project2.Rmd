@@ -16,47 +16,30 @@ D  = model.matrix(~ Least.Developed, data)[ , -1]
 X = cbind(1, X1, X2, X3, X4, C, D)
 p = ncol(X) - 1   
 
+beta_hat = solve(t(X) %*% X) %*% (t(X) %*% Y)
+Y_hat = X %*% beta_hat
+res = Y - Y_hat
+n = length(Y)
+sigma2_hat = sum(res^2) / (n - p - 1)
+Var_beta = sigma2_hat * solve(t(X) %*% X)
 
-
+H = X %*% solve(t(X) %*% X) %*% t(X)
+h = diag(H)
+std_res = res / sqrt(sigma2_hat * (1 - h))
 sortx = sort(std_res)
 nj = length(sortx)
 F_emp = (1:nj)/(nj+1)
 f_null = pnorm(sortx, mean(std_res), sd(std_res))
-cvm = sum(abs(F_emp - f_null)^2)
-cvm 
-
-set.seed(123)
-nmc= 15000
-mc_cvm = c()
-for(k in 1:nmc){
-  smc = rnorm(nj, 0, 1)
-  smc = sort(smc)
-  fxmc = (1:nj)/(nj+1)
-  psixmc = pnorm(smc, 0, 1)
-  mc_cvm = c(mc_cvm, sum((fxmc - psixmc)^2))
-}
-
-crit = quantile(mc_cvm, 1-.075)
-crit
-pval = mean(mc_cvm >= cvm)
-pval
 
 
-
-
-
-
-beta_hat = solve(t(X) %*% X) %*% (t(X) %*% Y)
-beta_CO2 = beta_hat[1]
-beta_CO2
-
-Y_hat = X %*% beta_hat
-res = Y - Y_hat
-n = length(Y)
-
-sigma2_hat = sum(res^2) / (n - p - 1)
-Var_beta = sigma2_hat * solve(t(X) %*% X)
-
-SE_CO2 = sqrt(Var_beta[5,5])
-SE_CO2
+Y_CO2 = X[, 2]  
+X_CO2 = X[, -2]
+beta_CO2 = solve(t(X_CO2) %*% X_CO2) %*% (t(X_CO2) %*% Y_CO2)
+y_hat_CO2 = X_CO2 %*% beta_CO2
+SSE_CO2 = sum((Y_CO2 - y_hat_CO2)^2)
+SST_CO2 = sum((Y_CO2 - mean(Y_CO2))^2)
+R2_CO2 = 1 - SSE_CO2/SST_CO2
+VIF_CO2 = 1 / (1 - R2_CO2)
+MCI_CO2 = sqrt(VIF_CO2)
+MCI_CO2
 ```
