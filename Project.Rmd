@@ -424,9 +424,20 @@ The hypotheses were:
 >
 > $H_a: \beta_1 \neq 0 \text{ (a relationship exists)}$
 
+<<<<<<< HEAD
 
 ```{r s3.plot, fig.width=7, fig.height=5, echo=FALSE}
 plot(data$CO2.emissions, data$Life.Expectancy,
+=======
+```{r s3.plot, fig.width=7, fig.height=5}
+CO2_data = data[, 6]    
+Life_data = data[, 4]  
+valid = is.finite(CO2_data) & is.finite(Life_data)
+CO2_clean = CO2_data[valid]
+Life_clean = Life_data[valid]
+
+plot(CO2_clean, Life_clean,
+>>>>>>> 56ab8a0994f577ddd1f4f034a8c98ba41c9ca466
      xlab = "CO2 Emissions (metric tons per capita)",
      ylab = "Life Expectancy (years)",
      main = "Life Expectancy vs. CO2 Emissions",
@@ -451,8 +462,13 @@ $$
 set.seed(123123)
 nboot = 10000
 
+<<<<<<< HEAD
 X = data$CO2.emissions
 Y = data$Life.Expectancy
+=======
+X = CO2_clean
+Y = Life_clean
+>>>>>>> 56ab8a0994f577ddd1f4f034a8c98ba41c9ca466
 n = length(X)
 
 mybhat1 = c()
