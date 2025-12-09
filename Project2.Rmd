@@ -709,60 +709,33 @@ The continent variables have slopes as high as 0.241, exceeding or closely match
 Lasso regression applies an L1 penalty to the regression coefficients, which can shrink coefficients of less important predictors to exactly zero, effectively performing automatic variable selection. To identify the optimal penalty parameter, we tested lambda values spanning from 10⁻⁵ to 10¹⁰ on a logarithmic scale and selected the value that minimized the Akaike Information Criterion (AIC).
 
 ```{r lasso}
-# Prepare design matrix
-X_no_int = cbind(X1, X2, X3, C, D)
+# Prepare design matrix (without intercept - lasso function adds it)
+X_lasso = cbind(X1, X2, X3, C, D)
 
 # Lambda sequence on log scale from 10^-5 to 10^10
 lambda_seq = 10^seq(-5, 10, by = 0.1)
-n = length(Y)
-p_total = ncol(X_no_int)
 
-# Storage
+# Fit lasso for each lambda value
+results_list = list()
 aic_vals = numeric(length(lambda_seq))
 bic_vals = numeric(length(lambda_seq))
-lasso_coefs = matrix(0, nrow = length(lambda_seq), ncol = p_total + 1)
 
-# Fit Lasso for each lambda
 for(i in 1:length(lambda_seq)){
-  lam = abs(lambda_seq[i])
-  
-  # Define Lasso objective function
-  f = function(bhat){
-    res = Y - as.vector(cbind(1, X_no_int) %*% bhat)
-    return(sum(res^2) + lam*sum(abs(bhat)))
-  }
-  
-  # Optimize to find coefficients
-  bhat00 = rep(0, p_total + 1)
-  So = optim(bhat00, f, method = 'Nelder-Mead', control = list(reltol = 1e-10))
-  bhat = So$par
-  
-  lasso_coefs[i, ] = bhat
-  
-  # Calculate predictions and RSS
-  yhat = cbind(1, X_no_int) %*% bhat
-  residuals = Y - yhat
-  rss = sum(residuals^2)
-  
-  # Count selected variables
-  p_selected = sum(abs(bhat[-1]) > 1e-6)
-  
-  # Calculate AIC and BIC
-  loglik = -n/2 * log(2*pi) - n/2 * log(rss/n) - n/2
-  aic_vals[i] = -2*loglik + 2*p_selected
-  bic_vals[i] = -2*loglik + p_selected*log(n)
+  results_list[[i]] = lasso(X_lasso, Y, lam = lambda_seq[i])
+  aic_vals[i] = results_list[[i]]$aic
+  bic_vals[i] = results_list[[i]]$bic
 }
 
-# Find optimal lambda by AIC
+# Find optimal lambda by minimizing AIC
 opt_idx = which.min(aic_vals)
 lambda_opt = lambda_seq[opt_idx]
-bhat_opt = lasso_coefs[opt_idx, ]
+bhat_opt = results_list[[opt_idx]]$coefficients
 
 cat("Optimal lambda:", lambda_opt, "\n")
-cat("Number of selected variables:", sum(abs(bhat_opt[-1]) > 1e-6), "\n\n")
+cat("Number of selected variables:", results_list[[opt_idx]]$p, "\n\n")
 
 # Results table
-predictor_names = c("Intercept", "CO2", "Health.Exp", "Obesity", 
+predictor_names = c("Intercept", "CO2", "Health.Exp", "Obesity",
                     colnames(C), "Least.Developed")
 
 lasso_results = data.frame(
