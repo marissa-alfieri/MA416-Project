@@ -621,7 +621,7 @@ lasso_results = data.frame(
 lasso_results
 ```
 
-The optimal penalty parameter was λ = 1258.925, at which point all nine predictors remained in the model with non-zero coefficients. This indicates that, even with L1 regularization, all predictors contribute meaningfully to explaining life expectancy.
+The optimal penalty parameter was $\lambda$ = 1258.925, where all nine predictors remained in the model with non-zero coefficients. This indicates that, even with L1 regularization, all predictors contribute meaningfully to explaining life expectancy.
 
 ### **Ridge Regression**
 
@@ -635,56 +635,7 @@ $$ where $\lambda$ is the ridge penalty parameter that controls the amount of sh
 
 To select the optimal lambda value, we need to balance stability (measured by the condition number) with statistical significance (measured by model fit). We'll examine how the condition number and model performance change across a range of lambda values.
 
-```{r ridge_tuning, fig.width=8, fig.height=4}
-library(MASS)
-
-# Grid of lambda values
-lambda_grid = seq(0, 50, by=0.5)
-kappa_vals = numeric(length(lambda_grid))
-rmse_vals = numeric(length(lambda_grid))
-
-for(i in 1:length(lambda_grid)){
-  lam = lambda_grid[i]
-
-  # Ridge regression
-  XtX_ridge = t(X) %*% X + lam * diag(ncol(X))
-  beta_ridge = solve(XtX_ridge) %*% t(X) %*% Y
-
-  # Condition number
-  S_ridge = svd(XtX_ridge)
-  kappa_vals[i] = sqrt(max(S_ridge$d) / min(S_ridge$d))
-
-  # RMSE
-  yhat_ridge = X %*% beta_ridge
-  rmse_vals[i] = sqrt(mean((Y - yhat_ridge)^2))
-}
-
-par(mfrow=c(1,2))
-plot(lambda_grid, kappa_vals, type="l", col="blue", lwd=2,
-     xlab="Lambda", ylab="Condition Number",
-     main="Ridge: Stability vs Lambda")
-
-plot(lambda_grid, rmse_vals, type="l", col="red", lwd=2,
-     xlab="Lambda", ylab="RMSE",
-     main="Ridge: RMSE vs Lambda")
-```
-
-```{r ridge_optimal}
-# Choose lambda that gives good balance
-# Look for "elbow" in condition number curve
-optimal_idx = which(kappa_vals < 50)[1]  # First lambda giving kappa < 50
-lambda_ridge = lambda_grid[optimal_idx]
-
-cat("Optimal Ridge Lambda:", lambda_ridge, "\n")
-cat("Condition Number at Optimal Lambda:", kappa_vals[optimal_idx], "\n")
-cat("RMSE at Optimal Lambda:", rmse_vals[optimal_idx], "\n")
-
-# Fit final ridge model
-XtX_ridge = t(X) %*% X + lambda_ridge * diag(ncol(X))
-beta_ridge = solve(XtX_ridge) %*% t(X) %*% Y
-
-cat("\nRidge Regression Coefficients:\n")
-print(beta_ridge)
+```{}
 ```
 
 The optimal lambda value provides a statistically solid ridge regression model while maintaining reasonable prediction accuracy. The condition number is substantially reduced compared to ordinary least squares, indicating improved numerical stability.
@@ -720,37 +671,7 @@ The response variable is a binary indicator of whether a country's life expectan
 **Model Construction and Data Partitioning**
 
 ```{r logistic_setup}
-# Create binary response: 1 if life expectancy > median, 0 otherwise
-median_life = median(Y)
-Y_binary = ifelse(Y > median_life, 1, 0)
 
-# Create training and testing partitions (70/30 split)
-set.seed(123)
-n_total = length(Y_binary)
-train_indices = sample(1:n_total, size = floor(0.7 * n_total))
-test_indices = setdiff(1:n_total, train_indices)
-
-# Training data
-Y_train = Y_binary[train_indices]
-X_train = X[train_indices, ]
-X1_train = X1[train_indices]
-X2_train = X2[train_indices]
-X3_train = X3[train_indices]
-C_train = C[train_indices, , drop = FALSE]
-D_train = if (is.matrix(D)) D[train_indices, , drop = FALSE] else D[train_indices]
-
-# Testing data
-Y_test = Y_binary[test_indices]
-X_test = X[test_indices, ]
-X1_test = X1[test_indices]
-X2_test = X2[test_indices]
-X3_test = X3[test_indices]
-C_test = C[test_indices, , drop = FALSE]
-D_test = if (is.matrix(D)) D[test_indices, , drop = FALSE] else D[test_indices]
-
-cat("Training set size:", length(Y_train), "\n")
-cat("Testing set size:", length(Y_test), "\n")
-cat("Median life expectancy:", round(median_life, 2), "\n")
 ```
 
 **Fitting the Logistic Regression Model**
@@ -760,51 +681,13 @@ The logistic regression model relates the log-odds of high life expectancy to th
 $$ where $p$ is the probability of having life expectancy above the median.
 
 ```{r logistic_model}
-# Fit logistic regression on training data
-train_data = data.frame(
-  Y = Y_train,
-  CO2 = X1_train,
-  Health = X2_train,
-  Obesity = X3_train,
-  C_train,
-  LD = D_train
-)
 
-logit_model = glm(Y ~ ., data = train_data, family = binomial(link = "logit"))
-summary(logit_model)
 ```
 
 **Model Assessment on Testing Data**
 
 ```{r logistic_test}
-# Predict on test data
-test_data = data.frame(
-  CO2 = X1_test,
-  Health = X2_test,
-  Obesity = X3_test,
-  C_test,
-  LD = D_test
-)
 
-predicted_probs = predict(logit_model, newdata = test_data, type = "response")
-
-# Choose threshold (0.5 is standard, but we can optimize)
-threshold = 0.5
-predicted_class = ifelse(predicted_probs > threshold, 1, 0)
-
-# Confusion matrix
-confusion = table(Predicted = predicted_class, Actual = Y_test)
-confusion
-
-# Calculate accuracy
-accuracy = sum(diag(confusion)) / sum(confusion)
-sensitivity = confusion[2,2] / sum(confusion[,2])  # True positive rate
-specificity = confusion[1,1] / sum(confusion[,1])  # True negative rate
-
-cat("\nModel Performance on Test Set:\n")
-cat("Accuracy:", round(accuracy, 4), "\n")
-cat("Sensitivity:", round(sensitivity, 4), "\n")
-cat("Specificity:", round(specificity, 4), "\n")
 ```
 
 The model achieves decent accuracy on the test set, indicating that it is neither severely overfitted nor underfitted. The sensitivity and specificity values show how well the model identifies countries with high versus low life expectancy.
@@ -814,63 +697,7 @@ The model achieves decent accuracy on the test set, indicating that it is neithe
 We evaluate the model at three test points representing distinct scenarios:
 
 ```{r logistic_testpoints}
-# Test point 1: Low CO2, low health expenditure, low obesity (Africa, LD)
-test_point_1 = data.frame(
-  CO2 = 2.0,
-  Health = 500,
-  Obesity = 5.0,
-  ContinentAsia = 0,
-  ContinentEurope = 0,
-  ContinentNorth.America = 0,
-  ContinentOceania = 0,
-  ContinentSouth.America = 0,
-  LD = 1
-)
 
-# Test point 2: Medium values (Asia, not LD)
-test_point_2 = data.frame(
-  CO2 = 6.0,
-  Health = 2000,
-  Obesity = 15.0,
-  ContinentAsia = 1,
-  ContinentEurope = 0,
-  ContinentNorth.America = 0,
-  ContinentOceania = 0,
-  ContinentSouth.America = 0,
-  LD = 0
-)
-
-# Test point 3: High CO2, high health expenditure, high obesity (Europe, not LD)
-test_point_3 = data.frame(
-  CO2 = 12.0,
-  Health = 5000,
-  Obesity = 30.0,
-  ContinentAsia = 0,
-  ContinentEurope = 1,
-  ContinentNorth.America = 0,
-  ContinentOceania = 0,
-  ContinentSouth.America = 0,
-  LD = 0
-)
-
-# Predict probabilities
-prob_1 = predict(logit_model, newdata = test_point_1, type = "response")
-prob_2 = predict(logit_model, newdata = test_point_2, type = "response")
-prob_3 = predict(logit_model, newdata = test_point_3, type = "response")
-
-# Classify using threshold
-class_1 = ifelse(prob_1 > threshold, "High", "Low")
-class_2 = ifelse(prob_2 > threshold, "High", "Low")
-class_3 = ifelse(prob_3 > threshold, "High", "Low")
-
-# Results table
-test_results = data.frame(
-  Test_Point = c("Low (Africa, LD)", "Medium (Asia)", "High (Europe)"),
-  Probability = round(c(prob_1, prob_2, prob_3), 4),
-  Classification = c(class_1, class_2, class_3)
-)
-
-test_results
 ```
 
 **Interpretation and Threshold Discussion**
