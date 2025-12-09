@@ -635,13 +635,13 @@ $$ where $\lambda$ is the ridge penalty parameter that controls the amount of sh
 
 To select the optimal lambda value, we need to balance stability (measured by the condition number $\kappa$) with prediction accuracy (measured by RMSE). I chose a condition number threshold of $\kappa < 50$ as the critical stability criterion. This threshold is statistically justified because:
 
-1. **Numerical stability**: Condition numbers above 50 indicate that the matrix is becoming ill-conditioned, meaning small changes in the data can lead to large changes in the coefficient estimates
-2. **Practical balance**: A threshold of 50 provides substantial improvement over OLS (which often has $\kappa > 100$ in the presence of multicollinearity) while avoiding over-regularization that would severely bias the estimates
-3. **Common practice**: This threshold aligns with standard practice in regression diagnostics, where condition numbers below 30-50 are considered acceptable for stable estimation
+1.  **Numerical stability**: Condition numbers above 50 indicate that the matrix is becoming ill-conditioned, meaning small changes in the data can lead to large changes in the coefficient estimates
+2.  **Practical balance**: A threshold of 50 provides substantial improvement over OLS (which often has $\kappa > 100$ in the presence of multicollinearity) while avoiding over-regularization that would severely bias the estimates
+3.  **Common practice**: This threshold aligns with standard practice in regression diagnostics, where condition numbers below 30-50 are considered acceptable for stable estimation
 
 We examine how the condition number and RMSE change across a range of lambda values to find the optimal penalty parameter.
 
-```{}
+```         
 ```
 
 The optimal lambda value provides a statistically solid ridge regression model while maintaining reasonable prediction accuracy. The condition number is substantially reduced compared to ordinary least squares, indicating improved numerical stability.
@@ -685,10 +685,7 @@ For Spain in 2015, the OLS model predicted 78.69 years while Ridge predicted 78.
 
 These extremely small differences (all under 0.03 years) suggest that multicollinearity was not severely affecting the OLS estimates in this dataset. This aligns with our earlier VIF analysis, which showed all VIF values well below concerning thresholds. The ridge model's value here is not in dramatically different predictions, but in providing more stable coefficient estimates that would be less sensitive to small changes in the data or to predictions made outside the observed range.
 
-From an application standpoint, these subtle differences would not lead to different policy interpretations for these specific countries. Both models agree that Spain has high life expectancy, Nigeria has substantially lower life expectancy, and Iran falls in the middle range. However, the ridge model's improved numerical stability would be more valuable in scenarios where:
-- Predictions are made for data points far from the training data
-- The model is updated frequently with new data
-- Coefficient stability is critical for understanding long-term trends
+From an application standpoint, these subtle differences would not lead to different policy interpretations for these specific countries. Both models agree that Spain has high life expectancy, Nigeria has substantially lower life expectancy, and Iran falls in the middle range. However, the ridge model's improved numerical stability would be more valuable in scenarios where: - Predictions are made for data points far from the training data - The model is updated frequently with new data - Coefficient stability is critical for understanding long-term trends
 
 ## Logistic Regression Model for High Life Expectancy
 
