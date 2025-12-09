@@ -482,18 +482,6 @@ For each predictor $X_k$, the standardized slope is: $$
 \hat{\beta}_{k}^{*} = \text{Cor}(e_{X_k}, e_Y)
 $$
 
-<<<<<<< HEAD
-```{r}
-slope_CO2 = partial_slope(X, Y, 2, c(1,3,4,5,6))
-
-slope_expend = partial_slope(X, Y, 3, c(1,2,4,5,6))
-
-slope_obesity = partial_slope(X, Y, 4, c(1,2,3,5,6))
-
-slope_continent = partial_slope(X, Y, 5, c(1,2,3,4,6))
-
-slope_develop = partial_slope(X, Y, 6, c(1,2,3,4,5))
-=======
 ```{r predsig}
 # CO2: regress on all others (Health, Obesity, Continent, LD)
 X_others_CO2 = cbind(1, X2, X3, C, D)
