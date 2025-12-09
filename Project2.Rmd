@@ -590,13 +590,9 @@ The slopes reinforce the conclusions drawn from the drop-one analysis. Obesity s
 Lasso regression applies an L1 penalty to the regression coefficients, which can shrink coefficients of less important predictors to exactly zero, effectively performing automatic variable selection. To identify the optimal penalty parameter, we tested lambda values spanning from $10^{-5}$ to $10^{10}$ on a logarithmic scale and selected the value that minimized the AIC.
 
 ```{r lasso}
-# Prepare design matrix (without intercept - lasso function adds it)
 X_lasso = cbind(X1, X2, X3, C, D)
-
-# Lambda sequence on log scale from 10^-5 to 10^10
 lambda_seq = 10^seq(-5, 10, by = 0.1)
 
-# Fit lasso for each lambda value
 results_list = list()
 aic_vals = numeric(length(lambda_seq))
 bic_vals = numeric(length(lambda_seq))
@@ -607,7 +603,6 @@ for(i in 1:length(lambda_seq)){
   bic_vals[i] = results_list[[i]]$bic
 }
 
-# Find optimal lambda by minimizing AIC
 opt_idx = which.min(aic_vals)
 lambda_opt = lambda_seq[opt_idx]
 bhat_opt = results_list[[opt_idx]]$coefficients
@@ -615,7 +610,6 @@ bhat_opt = results_list[[opt_idx]]$coefficients
 cat("Optimal lambda:", lambda_opt, "\n")
 cat("Number of selected variables:", results_list[[opt_idx]]$p, "\n\n")
 
-# Results table
 predictor_names = c("Intercept", "CO2", "Health.Exp", "Obesity",
                     colnames(C), "Least.Developed")
 
@@ -626,14 +620,6 @@ lasso_results = data.frame(
 )
 
 lasso_results
-```
-
-```{r lasso_plot, fig.width=6, fig.height=4}
-plot(log10(lambda_seq), aic_vals, type = 'l', lwd = 2,
-     xlab = expression(log[10](lambda)), ylab = "AIC",
-     main = "Lasso: AIC vs Lambda")
-abline(v = log10(lambda_opt), col = 'red', lwd = 2, lty = 2)
-points(log10(lambda_opt), aic_vals[opt_idx], col = 'red', pch = 19, cex = 1.5)
 ```
 
 The optimal penalty parameter was λ = 1258.925, at which point all nine predictors remained in the model with non-zero coefficients. This indicates that, even with L1 regularization, all predictors contribute meaningfully to explaining life expectancy. The AIC curve shows a clear minimum at log₁₀(λ) ≈ 3.1, with substantially higher AIC values for both smaller penalties (indicating potential overfitting) and larger penalties (indicating over-regularization that degrades model performance).
