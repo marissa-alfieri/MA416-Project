@@ -621,22 +621,13 @@ predictor_names = c("Intercept", "CO2", "Health.Exp", "Obesity",
 
 lasso_results = data.frame(
   Predictor = predictor_names,
-  Coefficient = round(bhat_opt, 4),
-  Selected = c("Always", ifelse(abs(bhat_opt[-1]) > 1e-6, "Yes", "No"))
+  Coefficient = round(bhat_opt, 4)
 )
 
 lasso_results
 ```
 
-```{r lasso_plot, fig.width=6, fig.height=4}
-plot(log10(lambda_seq), aic_vals, type = 'l', lwd = 2,
-     xlab = expression(log[10](lambda)), ylab = "AIC",
-     main = "Lasso: AIC vs Lambda")
-abline(v = log10(lambda_opt), col = 'red', lwd = 2, lty = 2)
-points(log10(lambda_opt), aic_vals[opt_idx], col = 'red', pch = 19, cex = 1.5)
-```
-
-The optimal penalty parameter was λ = 1258.925, at which point all nine predictors remained in the model with non-zero coefficients. This indicates that, even with L1 regularization, all predictors contribute meaningfully to explaining life expectancy. The AIC curve shows a clear minimum at log₁₀(λ) ≈ 3.1, with substantially higher AIC values for both smaller penalties (indicating potential overfitting) and larger penalties (indicating over-regularization that degrades model performance).
+The optimal penalty parameter was λ = 1258.925, at which point all nine predictors remained in the model with non-zero coefficients. This indicates that, even with L1 regularization, all predictors contribute meaningfully to explaining life expectancy.
 
 ### **Ridge Regression**
 
