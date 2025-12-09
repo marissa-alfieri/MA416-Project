@@ -537,6 +537,39 @@ Among all predictors, adult obesity has the strongest unique relationship with l
 
 Overall, these results suggest that health-related risk (obesity) and structural factors (continent and development status) are the strongest unique predictors of life expectancy, while environmental impact through CO$_2$ and healthcare spending play a smaller role when considered alongside the other variables.
 
+### **Test-Point Predictions**
+
+To illustrate the practical application of the regression model, we selected three test points representing observations with substantially different life expectancy values: one from the upper range, one from the lower range, and one near the median.
+```{r testpoints}
+# Pre-selected test points
+# Point 1: Spain 2015 (high life expectancy)
+spain_idx = which(data$Country == "Spain" & data$Year == 2015)
+# Point 2: Nigeria 2000 (low life expectancy)
+nigeria_idx = which(data$Country == "Nigeria" & data$Year == 2000)
+# Point 3: Iran 2009 (median life expectancy)
+iran_idx = which(data$Country == "Iran" & data$Year == 2009)
+
+# Get predictions
+pred_spain = sum(X[spain_idx, ] * beta_hat)
+pred_nigeria = sum(X[nigeria_idx, ] * beta_hat)
+pred_iran = sum(X[iran_idx, ] * beta_hat)
+
+# Create comparison table
+test_points_table = data.frame(
+  Country = c("Spain", "Nigeria", "Iran"),
+  Year = c(2015, 2000, 2009),
+  Actual_Life_Expectancy = round(c(Y[spain_idx], Y[nigeria_idx], Y[iran_idx]), 2),
+  Predicted_Life_Expectancy = round(c(pred_spain, pred_nigeria, pred_iran), 2),
+  Residual = round(c(Y[spain_idx] - pred_spain, 
+                     Y[nigeria_idx] - pred_nigeria, 
+                     Y[iran_idx] - pred_iran), 2)
+)
+
+test_points_table
+```
+
+The model demonstrates strong predictive performance across diverse contexts. For Spain in 2015, a high-income European nation with well-developed healthcare infrastructure, the model predicted 78.69 years compared to an actual life expectancy of 82.83 years, showing a modest underestimation. For Nigeria in 2000, representing a developing nation with limited health resources, the model predicted 57.86 years against an actual value of 46.27 years, overestimating by approximately 11.6 years and highlighting potential limitations in capturing extreme health crises or data collection challenges in lower-income settings. The model performed exceptionally well for Iran in 2009, predicting 73.20 years compared to an actual 73.03 years, with a residual of only -0.18 years. These predictions could inform international development organizations in prioritizing aid allocation, help governments benchmark their health outcomes against model expectations, and identify countries where observed life expectancy substantially deviates from predictions based on measured health and structural indicators.
+
 ### **Variable Selection Analysis**
 
 To evaluate the contributions of each predictor to the variability in life expectancy, three diagnostic approaches were applied: a Drop-One Sum-of-Squares (SSM) analysis, Added-Variable (AV) plot slope estimation, and Lasso regression penalization-term analysis. The drop-one analysis quantifies the reduction in model sum-of-squares when each predictor is removed from the model, while the AV-plot slope isolates the partial effect of each predictor after controlling for all remaining covariates. Together, these analyses provide an assessment of predictor relevance in the presence of multicollinearity and categorical structure.
@@ -590,25 +623,83 @@ The slopes reinforce the conclusions drawn from the drop-one analysis. Obesity s
 
 The continent variables have slopes as high as 0.241, exceeding or closely matching the slopes of the continuous predictors. These values demonstrate that regional differences remain a major explanatory component, even after covariate adjustment. The smaller slopes for some continents (≈ 0.03–0.07) indicate heterogeneity among regions, but the overall magnitude confirms that geographical classification plays a significant role in predicting life expectancy. The negative slope (–0.0919) suggests that, when all other predictors are held constant, countries marked as Least Developed tend to have slightly lower adjusted life expectancy. However, the magnitude is small, supporting the drop-one result that this indicator contributes very little unique explanatory power.
 
-#### **Lasso Regression**
+#### **Lasso Regression Penalization Analysis**
 
+Lasso regression applies an L1 penalty to the regression coefficients, which can shrink coefficients of less important predictors to exactly zero, effectively performing automatic variable selection. To identify the optimal penalty parameter, we tested lambda values spanning from 10⁻⁵ to 10¹⁰ on a logarithmic scale and selected the value that minimized the Akaike Information Criterion (AIC).
 ```{r lasso}
-lambda_seq = seq(0, 100, by=0.5)
-lasso_results = lambda(Xk, Y, lambda_seq)
+# Prepare design matrix
+X_no_int = cbind(X1, X2, X3, C, D)
 
-optimal_lambda = lasso_results$optimal_lambda
-optimal_coeffs = lasso_results$optimal_result$coefficients
+# Lambda sequence on log scale from 10^-5 to 10^10
+lambda_seq = 10^seq(-5, 10, by = 0.1)
+n = length(Y)
+p_total = ncol(X_no_int)
 
-cat("Optimal Lambda:", optimal_lambda, "\n")
-cat("Optimal Coefficients:\n")
-print(optimal_coeffs)
+# Storage
+aic_vals = numeric(length(lambda_seq))
+bic_vals = numeric(length(lambda_seq))
+lasso_coefs = matrix(0, nrow = length(lambda_seq), ncol = p_total + 1)
 
-plot(lambda_seq, lasso_results$aic_vals, type="l", col="blue", lwd=2,
-     xlab="Lambda", ylab="AIC", main="Lasso: AIC vs Lambda")
-abline(v=optimal_lambda, col="red", lty=2)
+# Fit Lasso for each lambda
+for(i in 1:length(lambda_seq)){
+  lam = abs(lambda_seq[i])
+  
+  # Define Lasso objective function
+  f = function(bhat){
+    res = Y - as.vector(cbind(1, X_no_int) %*% bhat)
+    return(sum(res^2) + lam*sum(abs(bhat)))
+  }
+  
+  # Optimize to find coefficients
+  bhat00 = rep(0, p_total + 1)
+  So = optim(bhat00, f, method = 'Nelder-Mead', control = list(reltol = 1e-10))
+  bhat = So$par
+  
+  lasso_coefs[i, ] = bhat
+  
+  # Calculate predictions and RSS
+  yhat = cbind(1, X_no_int) %*% bhat
+  residuals = Y - yhat
+  rss = sum(residuals^2)
+  
+  # Count selected variables
+  p_selected = sum(abs(bhat[-1]) > 1e-6)
+  
+  # Calculate AIC and BIC
+  loglik = -n/2 * log(2*pi) - n/2 * log(rss/n) - n/2
+  aic_vals[i] = -2*loglik + 2*p_selected
+  bic_vals[i] = -2*loglik + p_selected*log(n)
+}
+
+# Find optimal lambda by AIC
+opt_idx = which.min(aic_vals)
+lambda_opt = lambda_seq[opt_idx]
+bhat_opt = lasso_coefs[opt_idx, ]
+
+cat("Optimal lambda:", lambda_opt, "\n")
+cat("Number of selected variables:", sum(abs(bhat_opt[-1]) > 1e-6), "\n\n")
+
+# Results table
+predictor_names = c("Intercept", "CO2", "Health.Exp", "Obesity", 
+                    colnames(C), "Least.Developed")
+
+lasso_results = data.frame(
+  Predictor = predictor_names,
+  Coefficient = round(bhat_opt, 4),
+  Selected = c("Always", ifelse(abs(bhat_opt[-1]) > 1e-6, "Yes", "No"))
+)
+
+lasso_results
+```
+```{r lasso_plot, fig.width=6, fig.height=4}
+plot(log10(lambda_seq), aic_vals, type = 'l', lwd = 2,
+     xlab = expression(log[10](lambda)), ylab = "AIC",
+     main = "Lasso: AIC vs Lambda")
+abline(v = log10(lambda_opt), col = 'red', lwd = 2, lty = 2)
+points(log10(lambda_opt), aic_vals[opt_idx], col = 'red', pch = 19, cex = 1.5)
 ```
 
-The Lasso regression analysis identifies the optimal penalization parameter (lambda) that balances model fit and complexity. The optimal lambda value minimizes the AIC, selecting only the most important predictors while shrinking less important coefficients toward zero. This approach provides a data-driven method for variable selection that complements the drop-one and AV plot analyses.
+The optimal penalty parameter was λ = 1258.925, at which point all nine predictors remained in the model with non-zero coefficients. This indicates that, even with L1 regularization, all predictors contribute meaningfully to explaining life expectancy. The AIC curve shows a clear minimum at log₁₀(λ) ≈ 3.1, with substantially higher AIC values for both smaller penalties (indicating potential overfitting) and larger penalties (indicating over-regularization that degrades model performance).
 
 ### **Ridge Regression**
 
