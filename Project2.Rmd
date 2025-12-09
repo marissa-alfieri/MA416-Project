@@ -753,8 +753,6 @@ Despite these limitations, the models demonstrate strong predictive utility and 
 
 ## Appendix: Custom Functions
 
-This appendix contains all custom functions used throughout the analysis, ensuring full transparency and reproducibility of results.
-
 ### Function 1: partial_slope – Partial Slope
 
 ```{r}
