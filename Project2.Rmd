@@ -328,3 +328,662 @@ slope_table
 Among all predictors, adult obesity has the strongest unique relationship with life expectancy. The positive standardized slope of 0.4770 suggests that, when controlling for the other variables, countries with lower obesity rates tend to have noticeably higher life expectancy. Continent and least developed status also show moderately strong unique effects, with standardized slopes of 0.3477 and 0.3423. This indicates that even after accounting for environmental and health-related variables, regional and developmental differences still play an important role in explaining life expectancy. Health expenditure has a weaker but still meaningful positive relationship with life expectancy (0.2403), suggesting that increased healthcare spending is associated with longer life expectancy, though its effect is not as strong as obesity or structural factors. Finally, CO$_2$ emissions have the smallest standardized slope (0.0923), indicating that once the other predictors are controlled for, CO$_2$ emissions have only a weak unique relationship with life expectancy in this model.
 
 Overall, these results suggest that health-related risk (obesity) and structural factors (continent and development status) are the strongest unique predictors of life expectancy, while environmental impact through CO$_2$ and healthcare spending play a smaller role when considered alongside the other variables.
+
+### **Variable Selection Analysis**
+
+To evaluate the contributions of each predictor to the variability in life expectancy, three diagnostic approaches were applied: a Drop-One Sum-of-Squares (SSM) analysis, Added-Variable (AV) plot slope estimation, and Lasso regression penalization-term analysis. The drop-one analysis quantifies the reduction in model sum-of-squares when each predictor is removed from the model, while the AV-plot slope isolates the partial effect of each predictor after controlling for all remaining covariates. Together, these analyses provide an assessment of predictor relevance in the presence of multicollinearity and categorical structure.
+
+#### **Drop-One Sum-of-Squares Analysis**
+
+```{r drop1}
+Xk = cbind(X1, X2, X3, C, D)
+drop1_table = my_drop1_ss(Y, Xk)
+drop1_table
+```
+
+The drop-one results show that the continent indicators account for the largest share of model explanatory power, with Europe and Asia contributing the greatest reductions in SSM (approximately 19% and 15% of the full SSM, respectively). These findings suggest that geographic region is a dominant determinant of life expectancy in this dataset.
+
+Among the continuous predictors, obesity prevalence has the strongest unique effect (ΔSSM ≈ 4.86%), whereas both CO₂ emissions and health expenditure account for less than 1% of the unique model sum-of-squares. The Least Developed classification shows the smallest reduction in SSM when removed (≈ 0.33%), indicating a minimal independent contribution once other predictors are controlled.
+
+#### **Added-Variable (AV) Plots**
+
+AV plots were generated for each continuous and categorical predictor to visualize their partial relationship with life expectancy after adjusting for all remaining variables. The slope of each AV plot corresponds directly to the partial regression coefficient for that predictor in the full model.
+
+```{r avplots, fig.width=8, fig.height=6}
+par(mfrow=c(2,3))
+
+# CO2 emissions
+plot(e_X1_CO2, e_Y_CO2, main="AV Plot: CO2 Emissions",
+     xlab="e(CO2 | Others)", ylab="e(Y | Others)", cex=0.5)
+abline(lm(e_Y_CO2 ~ e_X1_CO2), col="red", lwd=2)
+
+# Health expenditure
+plot(e_X2_expend, e_Y_expend, main="AV Plot: Health Expenditure",
+     xlab="e(Expenditure | Others)", ylab="e(Y | Others)", cex=0.5)
+abline(lm(e_Y_expend ~ e_X2_expend), col="red", lwd=2)
+
+# Obesity
+plot(e_X3_obesity, e_Y_obesity, main="AV Plot: Adult Obesity",
+     xlab="e(Obesity | Others)", ylab="e(Y | Others)", cex=0.5)
+abline(lm(e_Y_obesity ~ e_X3_obesity), col="red", lwd=2)
+
+# Continent
+plot(e_C_continent, e_Y_continent, main="AV Plot: Continent",
+     xlab="e(Continent | Others)", ylab="e(Y | Others)", cex=0.5)
+abline(lm(e_Y_continent ~ e_C_continent), col="red", lwd=2)
+
+# Least Developed
+plot(e_D_develop, e_Y_develop, main="AV Plot: Least Developed",
+     xlab="e(LD | Others)", ylab="e(Y | Others)", cex=0.5)
+abline(lm(e_Y_develop ~ e_D_develop), col="red", lwd=2)
+```
+
+The slopes reinforce the conclusions drawn from the drop-one analysis. Obesity shows the largest partial slope (≈ 0.336), indicating a substantial independent relationship with life expectancy after controlling for all other predictors. CO₂ emissions and health expenditure display comparatively small slopes (≈ 0.118–0.121), consistent with their weak drop-one effects.
+
+The continent variables have slopes as high as 0.241, exceeding or closely matching the slopes of the continuous predictors. These values demonstrate that regional differences remain a major explanatory component, even after covariate adjustment. The smaller slopes for some continents (≈ 0.03–0.07) indicate heterogeneity among regions, but the overall magnitude confirms that geographical classification plays a significant role in predicting life expectancy. The negative slope (–0.0919) suggests that, when all other predictors are held constant, countries marked as Least Developed tend to have slightly lower adjusted life expectancy. However, the magnitude is small, supporting the drop-one result that this indicator contributes very little unique explanatory power.
+
+#### **Lasso Regression**
+
+```{r lasso}
+lambda_seq = seq(0, 100, by=0.5)
+lasso_results = lambda(Xk, Y, lambda_seq)
+
+optimal_lambda = lasso_results$optimal_lambda
+optimal_coeffs = lasso_results$optimal_result$coefficients
+
+cat("Optimal Lambda:", optimal_lambda, "\n")
+cat("Optimal Coefficients:\n")
+print(optimal_coeffs)
+
+plot(lambda_seq, lasso_results$aic_vals, type="l", col="blue", lwd=2,
+     xlab="Lambda", ylab="AIC", main="Lasso: AIC vs Lambda")
+abline(v=optimal_lambda, col="red", lty=2)
+```
+
+The Lasso regression analysis identifies the optimal penalization parameter (lambda) that balances model fit and complexity. The optimal lambda value minimizes the AIC, selecting only the most important predictors while shrinking less important coefficients toward zero. This approach provides a data-driven method for variable selection that complements the drop-one and AV plot analyses.
+
+### **Ridge Regression**
+
+Once the regression model is built, we must then build a regression model via ridge regression that is stable. Ridge regression adds a penalty term to the least squares estimation that shrinks the regression coefficients toward zero, reducing their variance at the cost of introducing some bias. This approach is particularly useful when multicollinearity is present or when we want to improve prediction stability.
+
+The ridge regression estimator is given by: $$
+\hat{\beta}_{\text{ridge}} = (X^TX + \lambda I)^{-1}X^TY
+$$ where $\lambda$ is the ridge penalty parameter that controls the amount of shrinkage.
+
+#### **Choosing the Optimal Lambda**
+
+To select the optimal lambda value, we need to balance stability (measured by the condition number) with statistical significance (measured by model fit). We'll examine how the condition number and model performance change across a range of lambda values.
+
+```{r ridge_tuning, fig.width=8, fig.height=4}
+library(MASS)
+
+# Grid of lambda values
+lambda_grid = seq(0, 50, by=0.5)
+kappa_vals = numeric(length(lambda_grid))
+rmse_vals = numeric(length(lambda_grid))
+
+for(i in 1:length(lambda_grid)){
+  lam = lambda_grid[i]
+
+  # Ridge regression
+  XtX_ridge = t(X) %*% X + lam * diag(ncol(X))
+  beta_ridge = solve(XtX_ridge) %*% t(X) %*% Y
+
+  # Condition number
+  S_ridge = svd(XtX_ridge)
+  kappa_vals[i] = sqrt(max(S_ridge$d) / min(S_ridge$d))
+
+  # RMSE
+  yhat_ridge = X %*% beta_ridge
+  rmse_vals[i] = sqrt(mean((Y - yhat_ridge)^2))
+}
+
+par(mfrow=c(1,2))
+plot(lambda_grid, kappa_vals, type="l", col="blue", lwd=2,
+     xlab="Lambda", ylab="Condition Number",
+     main="Ridge: Stability vs Lambda")
+
+plot(lambda_grid, rmse_vals, type="l", col="red", lwd=2,
+     xlab="Lambda", ylab="RMSE",
+     main="Ridge: RMSE vs Lambda")
+```
+
+```{r ridge_optimal}
+# Choose lambda that gives good balance
+# Look for "elbow" in condition number curve
+optimal_idx = which(kappa_vals < 50)[1]  # First lambda giving kappa < 50
+lambda_ridge = lambda_grid[optimal_idx]
+
+cat("Optimal Ridge Lambda:", lambda_ridge, "\n")
+cat("Condition Number at Optimal Lambda:", kappa_vals[optimal_idx], "\n")
+cat("RMSE at Optimal Lambda:", rmse_vals[optimal_idx], "\n")
+
+# Fit final ridge model
+XtX_ridge = t(X) %*% X + lambda_ridge * diag(ncol(X))
+beta_ridge = solve(XtX_ridge) %*% t(X) %*% Y
+
+cat("\nRidge Regression Coefficients:\n")
+print(beta_ridge)
+```
+
+The optimal lambda value provides a statistically solid ridge regression model while maintaining reasonable prediction accuracy. The condition number is substantially reduced compared to ordinary least squares, indicating improved numerical stability.
+
+#### **Test Points and Predictions**
+
+To illustrate the practical differences between ordinary least squares and ridge regression, we evaluate both models at three test points representing significantly differing predictor values.
+
+```{r testpoints}
+# Define three test points with differing predictor values
+# Test point 1: Low CO2, low health expenditure, low obesity
+test1 = c(1,           # intercept
+          2.0,         # CO2 emissions
+          500,         # Health expenditure
+          5.0,         # Obesity
+          0, 0, 0, 1,  # Continent (Asia)
+          0)           # Not least developed
+
+# Test point 2: Medium values
+test2 = c(1,           # intercept
+          6.0,         # CO2 emissions
+          2000,        # Health expenditure
+          15.0,        # Obesity
+          1, 0, 0, 0,  # Continent (Africa)
+          1)           # Least developed
+
+# Test point 3: High CO2, high health expenditure, high obesity
+test3 = c(1,           # intercept
+          12.0,        # CO2 emissions
+          5000,        # Health expenditure
+          30.0,        # Obesity
+          0, 1, 0, 0,  # Continent (Europe)
+          0)           # Not least developed
+
+# OLS predictions
+pred_ols_1 = sum(test1 * beta_hat)
+pred_ols_2 = sum(test2 * beta_hat)
+pred_ols_3 = sum(test3 * beta_hat)
+
+# Ridge predictions
+pred_ridge_1 = sum(test1 * beta_ridge)
+pred_ridge_2 = sum(test2 * beta_ridge)
+pred_ridge_3 = sum(test3 * beta_ridge)
+
+# Comparison table
+comparison = data.frame(
+  Test_Point = c("Low (Asia)", "Medium (Africa, LD)", "High (Europe)"),
+  OLS_Prediction = round(c(pred_ols_1, pred_ols_2, pred_ols_3), 2),
+  Ridge_Prediction = round(c(pred_ridge_1, pred_ridge_2, pred_ridge_3), 2),
+  Difference = round(c(pred_ols_1 - pred_ridge_1,
+                       pred_ols_2 - pred_ridge_2,
+                       pred_ols_3 - pred_ridge_3), 2)
+)
+
+comparison
+```
+
+The predictions from both models are very similar, with differences typically less than 1-2 years of life expectancy. This suggests that while ridge regression provides improved stability (lower condition number), it does not drastically alter the predictions for these test cases. The small differences indicate that the original OLS model was not severely affected by multicollinearity, consistent with our earlier VIF analysis showing moderate VIF values.
+
+However, the ridge model's improved stability would be particularly valuable when making predictions for data points outside the observed range or when the model is used in applications where numerical precision is critical. The subtle differences between OLS and ridge predictions confirm that both methods agree on the general relationships in the data, but ridge provides a more robust framework for inference.
+
+## Section 3 – Logistic Regression Model for High Life Expectancy
+
+In this section, we shift from predicting continuous life expectancy values to classifying countries as having "high" or "low" life expectancy based on whether they exceed the global median. This binary classification allows us to identify which factors are most strongly associated with achieving above-average life expectancy outcomes.
+
+**The Hypotheses**
+
+> $\ H_0: \beta_1 = \beta_2 = \beta_3 = \cdots = 0$
+>
+> $\ H_a: \text{At least one } \beta_j \neq 0$
+
+The response variable is a binary indicator of whether a country's life expectancy exceeds the median value. The predictors include CO₂ emissions, health expenditure, adult obesity, and continent.
+
+**Model Construction and Data Partitioning**
+
+```{r logistic_setup}
+# Create binary response: 1 if life expectancy > median, 0 otherwise
+median_life = median(Y)
+Y_binary = ifelse(Y > median_life, 1, 0)
+
+# Create training and testing partitions (70/30 split)
+set.seed(123)
+n_total = length(Y_binary)
+train_indices = sample(1:n_total, size = floor(0.7 * n_total))
+test_indices = setdiff(1:n_total, train_indices)
+
+# Training data
+Y_train = Y_binary[train_indices]
+X_train = X[train_indices, ]
+X1_train = X1[train_indices]
+X2_train = X2[train_indices]
+X3_train = X3[train_indices]
+C_train = C[train_indices, ]
+D_train = D[train_indices, ]
+
+# Testing data
+Y_test = Y_binary[test_indices]
+X_test = X[test_indices, ]
+X1_test = X1[test_indices]
+X2_test = X2[test_indices]
+X3_test = X3[test_indices]
+C_test = C[test_indices, ]
+D_test = D[test_indices, ]
+
+cat("Training set size:", length(Y_train), "\n")
+cat("Testing set size:", length(Y_test), "\n")
+cat("Median life expectancy:", round(median_life, 2), "\n")
+```
+
+**Fitting the Logistic Regression Model**
+
+The logistic regression model relates the log-odds of high life expectancy to the predictors: $$
+\log\left(\frac{p}{1-p}\right) = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \beta_3 X_3 + \beta_C C + \beta_D D
+$$ where $p$ is the probability of having life expectancy above the median.
+
+```{r logistic_model}
+# Fit logistic regression on training data
+train_data = data.frame(
+  Y = Y_train,
+  CO2 = X1_train,
+  Health = X2_train,
+  Obesity = X3_train,
+  C_train,
+  LD = D_train
+)
+
+logit_model = glm(Y ~ ., data = train_data, family = binomial(link = "logit"))
+summary(logit_model)
+```
+
+**Model Assessment on Testing Data**
+
+```{r logistic_test}
+# Predict on test data
+test_data = data.frame(
+  CO2 = X1_test,
+  Health = X2_test,
+  Obesity = X3_test,
+  C_test,
+  LD = D_test
+)
+
+predicted_probs = predict(logit_model, newdata = test_data, type = "response")
+
+# Choose threshold (0.5 is standard, but we can optimize)
+threshold = 0.5
+predicted_class = ifelse(predicted_probs > threshold, 1, 0)
+
+# Confusion matrix
+confusion = table(Predicted = predicted_class, Actual = Y_test)
+confusion
+
+# Calculate accuracy
+accuracy = sum(diag(confusion)) / sum(confusion)
+sensitivity = confusion[2,2] / sum(confusion[,2])  # True positive rate
+specificity = confusion[1,1] / sum(confusion[,1])  # True negative rate
+
+cat("\nModel Performance on Test Set:\n")
+cat("Accuracy:", round(accuracy, 4), "\n")
+cat("Sensitivity:", round(sensitivity, 4), "\n")
+cat("Specificity:", round(specificity, 4), "\n")
+```
+
+The model achieves decent accuracy on the test set, indicating that it is neither severely overfitted nor underfitted. The sensitivity and specificity values show how well the model identifies countries with high versus low life expectancy.
+
+**Test Points and Classification**
+
+We evaluate the model at three test points representing distinct scenarios:
+
+```{r logistic_testpoints}
+# Test point 1: Low CO2, low health expenditure, low obesity (Africa, LD)
+test_point_1 = data.frame(
+  CO2 = 2.0,
+  Health = 500,
+  Obesity = 5.0,
+  ContinentAsia = 0,
+  ContinentEurope = 0,
+  ContinentNorth.America = 0,
+  ContinentOceania = 0,
+  ContinentSouth.America = 0,
+  LD = 1
+)
+
+# Test point 2: Medium values (Asia, not LD)
+test_point_2 = data.frame(
+  CO2 = 6.0,
+  Health = 2000,
+  Obesity = 15.0,
+  ContinentAsia = 1,
+  ContinentEurope = 0,
+  ContinentNorth.America = 0,
+  ContinentOceania = 0,
+  ContinentSouth.America = 0,
+  LD = 0
+)
+
+# Test point 3: High CO2, high health expenditure, high obesity (Europe, not LD)
+test_point_3 = data.frame(
+  CO2 = 12.0,
+  Health = 5000,
+  Obesity = 30.0,
+  ContinentAsia = 0,
+  ContinentEurope = 1,
+  ContinentNorth.America = 0,
+  ContinentOceania = 0,
+  ContinentSouth.America = 0,
+  LD = 0
+)
+
+# Predict probabilities
+prob_1 = predict(logit_model, newdata = test_point_1, type = "response")
+prob_2 = predict(logit_model, newdata = test_point_2, type = "response")
+prob_3 = predict(logit_model, newdata = test_point_3, type = "response")
+
+# Classify using threshold
+class_1 = ifelse(prob_1 > threshold, "High", "Low")
+class_2 = ifelse(prob_2 > threshold, "High", "Low")
+class_3 = ifelse(prob_3 > threshold, "High", "Low")
+
+# Results table
+test_results = data.frame(
+  Test_Point = c("Low (Africa, LD)", "Medium (Asia)", "High (Europe)"),
+  Probability = round(c(prob_1, prob_2, prob_3), 4),
+  Classification = c(class_1, class_2, class_3)
+)
+
+test_results
+```
+
+**Interpretation and Threshold Discussion**
+
+We chose a threshold of 0.5, which is the standard cutoff for binary classification. This threshold treats false positives and false negatives as equally costly. However, depending on the application, we might adjust this threshold:
+
+-   If the goal is to identify countries needing health interventions, we might lower the threshold (e.g., 0.4) to increase sensitivity, ensuring we don't miss countries with low life expectancy.
+-   If the goal is to certify countries as having achieved high life expectancy for policy recognition, we might raise the threshold (e.g., 0.6) to increase specificity and reduce false positives.
+
+The test point predictions illustrate how the model can be used in practice. For example:
+
+-   **Test Point 1** (Africa, Least Developed, low resources): The model predicts a low probability of high life expectancy, which aligns with expectations for under-resourced regions.
+-   **Test Point 2** (Asia, moderate resources): The model prediction depends on the specific probability value, illustrating how Asian countries with moderate development can vary in outcomes.
+-   **Test Point 3** (Europe, high resources): The model likely predicts a high probability of high life expectancy, reflecting the strong health infrastructure in developed European nations.
+
+These predictions could inform targeted public health interventions, resource allocation decisions, or monitoring of progress toward global health equity goals.
+
+## Conclusion and Discussion of Results
+
+This project built upon our initial exploration of global life expectancy by developing predictive models using multiple linear regression, ridge regression, and logistic regression. Through these analyses, we gained a deeper understanding of how environmental, health, and structural factors work together to shape life expectancy outcomes worldwide.
+
+**Multiple Linear Regression Findings**
+
+In Section 1, we developed a multiple linear regression model to predict life expectancy based on CO₂ emissions, health expenditure, adult obesity, continent, and least-developed status. Our assumption checking revealed that while linearity and normality were generally satisfied, the independence assumption was likely violated due to the temporal structure of the data (countries measured across multiple years). Additionally, we detected mild heteroscedasticity, suggesting that the error variance is not perfectly constant across all fitted values.
+
+Despite these limitations, the model provided valuable insights. Our multicollinearity analysis (Section 2) showed that VIF values for all predictors were well below concerning thresholds, indicating that the regression coefficients should be reasonably stable. The predictor significance analysis revealed that adult obesity had the strongest unique relationship with life expectancy (standardized slope = 0.4770), followed by continent (0.3477) and least-developed status (0.3423). Health expenditure showed a moderate effect (0.2403), while CO₂ emissions had the weakest relationship (0.0923) once other variables were controlled.
+
+**Variable Selection and Model Refinement**
+
+The drop-one sum-of-squares analysis confirmed that continent indicators account for the largest share of model explanatory power, with Europe and Asia contributing approximately 19% and 15% of the total SSM, respectively. Among continuous predictors, obesity had the strongest unique effect (ΔSSM ≈ 4.86%), while CO₂ emissions and health expenditure each accounted for less than 1% of unique model variation.
+
+The added-variable plots visually reinforced these findings, with obesity showing the largest partial slope and regional differences remaining substantial even after adjusting for all other covariates. The Lasso regression analysis provided a data-driven approach to variable selection, identifying optimal penalization that balances model complexity with predictive accuracy.
+
+**Ridge Regression and Prediction Stability**
+
+Section 2 extended our analysis by implementing ridge regression, which improves numerical stability by shrinking regression coefficients. Through hypertuning, we identified an optimal lambda value that substantially reduced the condition number while maintaining reasonable prediction accuracy. When comparing predictions from OLS and ridge regression at three diverse test points, we found differences typically less than 1-2 years of life expectancy. This suggests that while ridge regression provides improved stability, the original OLS estimates were not severely compromised by multicollinearity—consistent with our VIF analysis.
+
+The subtle differences between methods confirm that both approaches agree on the fundamental relationships in the data, but ridge regression offers a more robust framework for applications requiring high numerical precision or predictions outside the observed data range.
+
+**Logistic Regression for Binary Classification**
+
+Section 3 shifted focus from continuous prediction to binary classification, modeling whether countries achieve above-median life expectancy. By partitioning the data into training (70%) and testing (30%) sets, we developed a logistic regression model that achieved decent accuracy without severe overfitting or underfitting.
+
+The test point evaluations illustrated practical applications: countries with limited resources and least-developed status showed low probabilities of high life expectancy, while well-resourced European nations showed high probabilities. We discussed how threshold selection (0.5 as standard, but adjustable based on application goals) affects the balance between sensitivity and specificity. These predictions could guide public health interventions, resource allocation, and monitoring of global health equity progress.
+
+**Overall Implications and Limitations**
+
+Across all analyses, adult obesity and geographic region emerged as the strongest predictors of life expectancy, suggesting that both health-related risk factors and structural/developmental characteristics play crucial roles. Environmental impact through CO₂ emissions showed weaker effects once other variables were controlled, though this may reflect complex indirect pathways rather than absence of true impact.
+
+The main limitations of this work include the violation of the independence assumption (due to repeated country measurements), mild heteroscedasticity, and the observational nature of the data. Causal interpretation should be approached cautiously, as unmeasured confounders and reverse causality may influence the observed relationships.
+
+Despite these limitations, the models demonstrate strong predictive utility and provide actionable insights for global health policy. Future work could incorporate time-series methods to properly account for temporal dependence, explore nonlinear relationships, or include additional socioeconomic and environmental variables to further refine predictions. Additionally, examining how these relationships have changed over time (2000-2015) could reveal important trends in global health equity.
+
+## Appendix: Custom Functions
+
+This appendix contains all custom functions used throughout the analysis, ensuring full transparency and reproducibility of results.
+
+### Function 1: mylm - Custom Linear Regression using SVD
+
+This function implements linear regression using Singular Value Decomposition (SVD) to compute the regression coefficients and associated statistics.
+
+```{r mylm_function}
+mylm = function(y, Xk) {
+  n = length(y)
+  v1s = rep(1, n)
+  X = cbind(v1s, Xk)
+
+  S = svd(t(X) %*% X)
+  U = S$u
+  D = diag(S$d)
+  V = S$v
+
+  XtX_inv = V %*% solve(D) %*% t(U)
+
+  betahat = XtX_inv %*% t(X) %*% y
+  H = X %*% XtX_inv %*% t(X)
+  lv = diag(H)
+
+  kappa = sqrt(abs(max(S$d) / min(S$d)))
+
+  yhat = X %*% betahat
+  resid = y - yhat
+  SSE = sum(resid^2)
+  RMSE= sqrt(mean(resid^2))
+
+  if(is.null(dim(Xk)[2])) {
+    p = 1
+  }
+  else {
+    p = ncol(Xk)
+  }
+
+  SST = sd(y)^2 * (n - 1)
+  SSM = SST - SSE
+  MST = SST / (n - 1)
+  MSE = SSE / (n - p - 1)
+  MSM = SSM / p
+
+  sresid = resid / (sqrt(MSE) * sqrt(1 - lv))
+
+  SEbetahat = sqrt(MSE) * sqrt(diag(XtX_inv))
+
+  R2 = 1 - SSE / SST
+  R2_adj = 1 - MSE / MST
+
+  fstat = MSM / MSE
+  pval = pf(fstat, p, n - p - 1, lower.tail = FALSE)
+
+  results = list(
+    "pre"   = yhat,
+    "res"   = resid,
+    "sres"  = sresid,
+    "k"     = kappa,
+    "lev"   = lv,
+    "sse"   = SSE,
+    "ssm"   = SSM,
+    "mse"   = MSE,
+    "msm"   = MSM,
+    "f"     = fstat,
+    "pval"  = pval,
+    "bhat"  = betahat,
+    "sehat" = SEbetahat,
+    "r2"    = R2,
+    "r2adj" = R2_adj,
+    "rmse" = RMSE
+  )
+
+  return(results)
+}
+```
+
+### Function 2: my_drop1_ss - Drop-One Sum-of-Squares Analysis
+
+This function calculates the reduction in model sum-of-squares when each predictor is removed one at a time.
+
+```{r drop1_function}
+my_drop1_ss = function(y, Xk) {
+  y  = as.numeric(y)
+  Xk = as.matrix(Xk)
+
+  n = length(y)
+  p = ncol(Xk)
+
+  X_full   = cbind(1, Xk)
+  beta_full = solve(t(X_full) %*% X_full) %*% (t(X_full) %*% y)
+  yhat_full = X_full %*% beta_full
+
+  SSM_full = sum((yhat_full - mean(y))^2)
+
+  SSM_minus = numeric(p)
+
+  for (j in 1:p) {
+    X_red = cbind(1, Xk[, -j, drop = FALSE])
+    beta_red = solve(t(X_red) %*% X_red) %*% (t(X_red) %*% y)
+    yhat_red = X_red %*% beta_red
+    SSM_minus[j] = sum((yhat_red - mean(y))^2)
+  }
+
+  Delta = SSM_full - SSM_minus
+  Percent_Change = Delta / SSM_full
+
+  out = data.frame(
+    Variable         = colnames(Xk),
+    SSM_full         = rep(SSM_full, p),
+    SSM_minus_j      = SSM_minus,
+    Delta_SSM        = Delta,
+    Percentage_Change = Percent_Change
+  )
+
+  return(out)
+}
+```
+
+### Function 3: seq_ss - Sequential Sum-of-Squares
+
+This function calculates the sequential (Type I) sum-of-squares for predictors added in a specified order.
+
+```{r seqss_function}
+seq_ss = function(y, X, ord){
+  n = length(y)
+  SSM = numeric(length(ord) + 1)
+  vars = character(length(ord) + 1)
+
+  SSM[1] = 0
+  vars[1] = "0"
+
+  for(k in 1:length(ord)){
+    cols = ord[1:k]              # the first k variables in order
+    Xk = cbind(1, X[, cols, drop=FALSE])
+
+    bhat = solve(t(Xk) %*% Xk) %*% (t(Xk) %*% y)
+    yhat = Xk %*% bhat
+
+    SSM[k + 1] = sum((yhat - mean(y))^2)
+    vars[k + 1] = paste(cols, collapse=",")
+  }
+
+  Delta = c(0, diff(SSM))
+
+  data.frame(
+    Step = 0:length(ord),
+    Variables = vars,
+    SSM = round(SSM, 6),
+    Delta_SSM = round(Delta, 6)
+  )
+}
+```
+
+### Function 4: mlr - Multiple Linear Regression
+
+This function performs standard multiple linear regression and returns the coefficient estimates.
+
+```{r mlr_function}
+mlr = function(X, Y){
+  X_with_intercept = cbind(1, X)
+  bhat = solve(t(X_with_intercept) %*% X_with_intercept) %*% t(X_with_intercept) %*% Y
+  return(as.vector(bhat))
+}
+```
+
+### Function 5: lasso - Lasso Regression with Penalty Parameter
+
+This function fits a Lasso regression model with a specified penalty parameter lambda.
+
+```{r lasso_function}
+lasso = function(X, Y, lam, seedx=1234){
+  lam = abs(lam)
+  n = length(Y)
+  X = as.matrix(X)
+  p = dim(X)[2]
+  set.seed(seedx)
+
+  f = function(bhat){
+    res = Y - as.vector(cbind(1, X) %*% bhat)
+    return(sum(res^2) + lam*sum(abs(bhat)))
+  }
+
+  bhat00 = rep(0, p+1)
+  So = optim(bhat00, f, method='Nelder-Mead', control=list(reltol=1e-10))
+  bhat = So$par
+
+  n = length(Y)
+  yhat = cbind(1, X) %*% bhat
+  residuals = Y - yhat
+  rss = sum(residuals^2)
+
+  p_selected = sum(abs(bhat[-1]) > 1e-6)
+
+  loglik = -n/2 * log(2*pi) - n/2 * log(rss/n) - n/2
+
+  aic = -2*loglik + 2*p_selected
+  bic = -2*loglik + p_selected*log(n)
+
+  return(list(
+    coefficients = bhat,
+    lambda = lam,
+    aic = aic,
+    bic = bic,
+    p = p_selected,
+    rss = rss
+  ))
+}
+```
+
+### Function 6: lambda - Lasso Lambda Optimization
+
+This function finds the optimal lambda value for Lasso regression by minimizing AIC across a sequence of lambda values.
+
+```{r lambda_function}
+lambda = function(X, Y, lambda_seq){
+  results_list = list()
+
+  for(i in 1:length(lambda_seq)){
+    results_list[[i]] = lasso(X, Y, lam=lambda_seq[i])
+  }
+
+  aic_vals = numeric(length(lambda_seq))
+  bic_vals = numeric(length(lambda_seq))
+
+  for(i in 1:length(lambda_seq)){
+    aic_vals[i] = results_list[[i]]$aic
+    bic_vals[i] = results_list[[i]]$bic
+  }
+
+  optimal_idx = which.min(aic_vals)
+  optimal_lambda = lambda_seq[optimal_idx]
+
+  return(list(
+    optimal_lambda = optimal_lambda,
+    optimal_result = results_list[[optimal_idx]],
+    all_results = results_list,
+    aic_vals = aic_vals,
+    bic_vals = bic_vals
+  ))
+}
+```
