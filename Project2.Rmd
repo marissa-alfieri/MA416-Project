@@ -541,20 +541,14 @@ Overall, these results suggest that health-related risk (obesity) and structural
 
 To illustrate the practical application of the regression model, we selected three test points representing observations with substantially different life expectancy values: one from the upper range, one from the lower range, and one near the median.
 ```{r testpoints}
-# Pre-selected test points
-# Point 1: Spain 2015 (high life expectancy)
 spain_idx = which(data$Country == "Spain" & data$Year == 2015)
-# Point 2: Nigeria 2000 (low life expectancy)
 nigeria_idx = which(data$Country == "Nigeria" & data$Year == 2000)
-# Point 3: Iran 2009 (median life expectancy)
 iran_idx = which(data$Country == "Iran" & data$Year == 2009)
 
-# Get predictions
 pred_spain = sum(X[spain_idx, ] * beta_hat)
 pred_nigeria = sum(X[nigeria_idx, ] * beta_hat)
 pred_iran = sum(X[iran_idx, ] * beta_hat)
 
-# Create comparison table
 test_points_table = data.frame(
   Country = c("Spain", "Nigeria", "Iran"),
   Year = c(2015, 2000, 2009),
