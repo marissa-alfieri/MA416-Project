@@ -803,7 +803,7 @@ The optimal lambda value provides a statistically solid ridge regression model w
 
 To illustrate the practical differences between ordinary least squares and ridge regression, we evaluate both models at three test points representing significantly differing predictor values.
 
-```{r testpoints}
+```{r ridge_testpoints}
 # Define three test points with differing predictor values
 # Test point 1: Low CO2, low health expenditure, low obesity
 test1 = c(1,           # intercept
