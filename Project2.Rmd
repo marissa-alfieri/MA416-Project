@@ -628,26 +628,25 @@ for (j in 1:ncol(C)) {
 }
 
 mD = cor(fit5_1234$sres, fit1234$sres) * sd(fit1234$sres) / sd(fit5_1234$sres)
+
+# AV plots for each continent
 for (j in 1:ncol(C)) {
-  Cj = C[, j] 
+  Cj = C[, j]
   fitCj_1235 = mylm(Cj, cbind(X1, X2, X3, D))
-  
-  plot(fit4_1235$sres, fit1235$sres,
-       main = paste("AV plot for Continent", colnames(C)[j]),
+
+  plot(fitCj_1235$sres, fit1235$sres,
+       main = paste("AV plot for Continent:", colnames(C)[j]),
        xlab = paste("sres for", colnames(C)[j], "~ (X1, X2, X3, D)"),
-       ylab = "sres for y ~ (X1, X2, X3, D)")
+       ylab = "sres for Y ~ (X1, X2, X3, D)")
   abline(h = 0, v = 0, lwd = 2)
-       
-  mCj = cor(fit4_1235$sres, fit1235$sres) * sd(fit1235$sres) / sd(fit4_1235$sres)
-  bCj = mean(fit1235$sres) - mCj * mean(fit4_1235$sres)
+
+  mCj = cor(fitCj_1235$sres, fit1235$sres) * sd(fit1235$sres) / sd(fitCj_1235$sres)
+  bCj = mean(fit1235$sres) - mCj * mean(fitCj_1235$sres)
 
   abline(bCj, mCj, col = "red", lwd = 3)
 }
-# Continent (using fitted values from multi-column continent)
-plot(C_fitted, e_Y_continent, main="AV Plot: Continent",
-     xlab="e(Continent | Others)", ylab="e(Y | Others)", cex=0.5)
-abline(lm(e_Y_continent ~ C_fitted), col="red", lwd=2)
 
+# AV plots for least developed
 for (j in 1:ncol(D)) {
   Dj = D[, j]
   fitDj_1234 = mylm(Dj, cbind(X1, X2, X3, C))
