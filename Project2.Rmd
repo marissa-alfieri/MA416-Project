@@ -24,7 +24,7 @@ This test evaluates whether the regression model provides any predictive value a
 >
 > $\ H_a: \text{At least one } \beta_j \neq 0$
 
-The response variable is life expectancy, and the predictors include CO₂ emissions, health expenditure, adult obesity, continent, and least-developed status.
+The response variable is life expectancy, and the predictors include CO$_2$ emissions, health expenditure, adult obesity, continent, and least-developed status.
 
 The full regression model can be written in matrix form as: $$
 Y = X\beta + \varepsilon
@@ -249,6 +249,16 @@ lambda = function(X, Y, lambda_seq){
     bic_vals = bic_vals
   ))
 }
+
+partial_slope = function(X, Y, target_col, control_cols) {
+  X_others = cbind(X[, control_cols])
+  beta_Y = solve(t(X_others) %*% X_others) %*% t(X_others) %*% Y
+  beta_X = solve(t(X_others) %*% X_others) %*% t(X_others) %*% X[, target_col]
+  e_Y = Y - X_others %*% beta_Y
+  e_X1 = X[, target_col] - X_others %*% beta_X
+  slope = cor(e_X1, e_Y)
+  return(slope)
+}
 ```
 
 Here, an intercept column of 1’s is included in the design matrix, and dummy variables are created for the categorical predictors (continent and least-developed status) using reference groups.
@@ -468,51 +478,16 @@ For each predictor $X_k$, the standardized slope is: $$
 \hat{\beta}_{k}^{*} = \text{Cor}(e_{X_k}, e_Y)
 $$
 
-```{r predsig}
-X_others_CO2 = cbind(X[,1], X[,3], X[,4], X[,5], X[,6])
-beta_Y_CO2 = 
-  solve(t(X_others_CO2) %*% X_others_CO2) %*% t(X_others_CO2) %*% Y
-beta_X1_CO2 = 
-  solve(t(X_others_CO2) %*% X_others_CO2) %*% t(X_others_CO2) %*% X[,2]
-e_Y_CO2 = Y - X_others_CO2 %*% beta_Y_CO2
-e_X1_CO2 = X[,2] - X_others_CO2 %*% beta_X1_CO2
-slope_CO2 = cor(e_X1_CO2, e_Y_CO2)
+```{r}
+slope_CO2 = partial_slope(X, Y, 2, c(1,3,4,5,6))
 
-X_others_expend = cbind(X[,1], X[,2], X[,4], X[,5], X[,6])
-beta_Y_expend = 
-  solve(t(X_others_expend) %*% X_others_expend) %*% t(X_others_expend) %*% Y
-beta_X2_expend = 
-  solve(t(X_others_expend) %*% X_others_expend) %*% t(X_others_expend) %*% X[,3]
-e_Y_expend = Y - X_others_expend %*% beta_Y_expend
-e_X2_expend = X[,3] - X_others_expend %*% beta_X2_expend
-slope_expend = cor(e_X2_expend, e_Y_expend)
+slope_expend = partial_slope(X, Y, 3, c(1,2,4,5,6))
 
-X_others_obesity = cbind(X[,1], X[,2], X[,3], X[,5], X[,6])
-beta_Y_obesity = 
-  solve(t(X_others_obesity) %*% X_others_obesity) %*% t(X_others_obesity) %*% Y
-beta_X3_obesity = 
-  solve(t(X_others_obesity) %*% X_others_obesity) %*% t(X_others_obesity) %*% X[,4]
-e_Y_obesity = Y - X_others_obesity %*% beta_Y_obesity
-e_X3_obesity = X[,4] - X_others_obesity %*% beta_X3_obesity
-slope_obesity = cor(e_X3_obesity, e_Y_obesity)
+slope_obesity = partial_slope(X, Y, 4, c(1,2,3,5,6))
 
-X_others_continent = cbind(X[,1], X[,2], X[,3], X[,4], X[,6])
-beta_Y_continent = 
-  solve(t(X_others_continent) %*% X_others_continent) %*% t(X_others_continent) %*% Y
-beta_C_continent = 
-  solve(t(X_others_continent) %*% X_others_continent) %*% t(X_others_continent) %*% X[,5]
-e_Y_continent = Y - X_others_continent %*% beta_Y_continent
-e_C_continent = X[,5] - X_others_continent %*% beta_C_continent
-slope_continent = cor(e_C_continent, e_Y_continent)
+slope_continent = partial_slope(X, Y, 5, c(1,2,3,4,6))
 
-X_others_develop = cbind(X[,1], X[,2], X[,3], X[,4], X[,5])
-beta_Y_develop = 
-  solve(t(X_others_develop) %*% X_others_develop) %*% t(X_others_develop) %*% Y
-beta_D_develop = 
-  solve(t(X_others_develop) %*% X_others_develop) %*% t(X_others_develop) %*% X[,6]
-e_Y_develop = Y - X_others_develop %*% beta_Y_develop
-e_D_develop = X[,6] - X_others_develop %*% beta_D_develop
-slope_develop = cor(e_D_develop, e_Y_develop)
+slope_develop = partial_slope(X, Y, 6, c(1,2,3,4,5))
 ```
 
 ```{r predsigtable, echo=FALSE}
@@ -539,7 +514,13 @@ Overall, these results suggest that health-related risk (obesity) and structural
 
 ### **Variable Selection Analysis**
 
-To evaluate the contributions of each predictor to the variability in life expectancy, three diagnostic approaches were applied: a Drop-One Sum-of-Squares (SSM) analysis, Added-Variable (AV) plot slope estimation, and Lasso regression penalization-term analysis. The drop-one analysis quantifies the reduction in model sum-of-squares when each predictor is removed from the model, while the AV-plot slope isolates the partial effect of each predictor after controlling for all remaining covariates. Together, these analyses provide an assessment of predictor relevance in the presence of multicollinearity and categorical structure.
+To evaluate the contributions of each predictor to the variability in Life Expectancy, three diagnostic approaches were applied:
+
+1.  Drop-One Sum-of-Squares (SSM) analysis,
+2.  Added-Variable (AV) plot slope estimation,
+3.  Lasso regression penalization-term analysis
+
+The drop-one analysis quantifies the reduction in model sum-of-squares when each predictor is removed from the model, while the AV-plot slope isolates the partial effect of each predictor after controlling for all remaining covariates. Together, these analyses provide an assessment of predictor relevance in the presence of multicollinearity and categorical structure.
 
 #### **Drop-One Sum-of-Squares Analysis**
 
@@ -558,32 +539,86 @@ Among the continuous predictors, obesity prevalence has the strongest unique eff
 AV plots were generated for each continuous and categorical predictor to visualize their partial relationship with life expectancy after adjusting for all remaining variables. The slope of each AV plot corresponds directly to the partial regression coefficient for that predictor in the full model.
 
 ```{r avplots, fig.width=8, fig.height=6}
-par(mfrow=c(2,3))
+fit12345 = mylm(Y, cbind(X1,X2,X3,C,D))
+fit1234= mylm(Y, cbind(X1,X2,X3,C))
+fit1235= mylm(Y, cbind(X1,X2,X3,D))
+fit1245= mylm(Y, cbind(X1,X2,C,D))
+fit1345= mylm(Y, cbind(X1,X3,C,D))
+fit2345 = mylm(Y, cbind(X2,X3,C,D))
 
-# CO2 emissions
-plot(e_X1_CO2, e_Y_CO2, main="AV Plot: CO2 Emissions",
-     xlab="e(CO2 | Others)", ylab="e(Y | Others)", cex=0.5)
-abline(lm(e_Y_CO2 ~ e_X1_CO2), col="red", lwd=2)
+fit1_2345= mylm(X1, cbind(X2,X3,C,D))
+fit2_1345= mylm(X2, cbind(X1,X3,C,D))
+fit3_1245= mylm(X3, cbind(X1,X2,C,D))
+fit4_1235= mylm(C, cbind(X1,X2,X3,D))
+fit5_1234= mylm(D, cbind(X1,X2,X3,C))
 
-# Health expenditure
-plot(e_X2_expend, e_Y_expend, main="AV Plot: Health Expenditure",
-     xlab="e(Expenditure | Others)", ylab="e(Y | Others)", cex=0.5)
-abline(lm(e_Y_expend ~ e_X2_expend), col="red", lwd=2)
+m1 = cor(fit1_2345$sres, fit2345$sres)*sd(fit2345$sres)/sd(fit1_2345$sres)
+m2 = cor(fit2_1345$sres, fit1345$sres)*sd(fit1345$sres)/sd(fit2_1345$sres)
+m3 = cor(fit3_1245$sres, fit1245$sres)*sd(fit1245$sres)/sd(fit3_1245$sres)
+mC = numeric(ncol(C))
+for (j in 1:ncol(C)) {
+  Cj = C[, j]
+  fitCj_1235 = mylm(Cj, cbind(X1, X2, X3, D))
+  mC[j] = cor(fitCj_1235$sres, fit1235$sres) *
+    sd(fit1235$sres) / sd(fitCj_1235$sres)
+}
 
-# Obesity
-plot(e_X3_obesity, e_Y_obesity, main="AV Plot: Adult Obesity",
-     xlab="e(Obesity | Others)", ylab="e(Y | Others)", cex=0.5)
-abline(lm(e_Y_obesity ~ e_X3_obesity), col="red", lwd=2)
+mD = cor(fit5_1234$sres, fit1234$sres) * sd(fit1234$sres) / sd(fit5_1234$sres)
+for (j in 1:ncol(C)) {
+  Cj = C[, j] 
+  fitCj_1235 = mylm(Cj, cbind(X1, X2, X3, D))
+  
+  plot(fit4_1235$sres, fit1235$sres,
+       main = paste("AV plot for Continent", colnames(C)[j]),
+       xlab = paste("sres for", colnames(C)[j], "~ (X1, X2, X3, D)"),
+       ylab = "sres for y ~ (X1, X2, X3, D)")
+  abline(h = 0, v = 0, lwd = 2)
+       
+  mCj = cor(fit4_1235$sres, fit1235$sres) * sd(fit1235$sres) / sd(fit4_1235$sres)
+  bCj = mean(fit1235$sres) - mCj * mean(fit4_1235$sres)
 
-# Continent
-plot(e_C_continent, e_Y_continent, main="AV Plot: Continent",
-     xlab="e(Continent | Others)", ylab="e(Y | Others)", cex=0.5)
-abline(lm(e_Y_continent ~ e_C_continent), col="red", lwd=2)
+  abline(bCj, mCj, col = "red", lwd = 3)
+}
 
-# Least Developed
-plot(e_D_develop, e_Y_develop, main="AV Plot: Least Developed",
-     xlab="e(LD | Others)", ylab="e(Y | Others)", cex=0.5)
-abline(lm(e_Y_develop ~ e_D_develop), col="red", lwd=2)
+for (j in 1:ncol(D)) {
+  Dj = D[, j]
+  fitDj_1234 = mylm(Dj, cbind(X1, X2, X3, C))
+  
+  plot(fitDj_1234$sres, fit1234$sres,
+       main = paste("AV plot for Least Developed:", colnames(D)[j]),
+       xlab = paste("sres for", colnames(D)[j], "~ (X1, X2, X3, C)"),
+       ylab = "sres for Y ~ (X1, X2, X3, C)")
+  abline(0,  0, lwd = 2)
+  
+  mDj = cor(fitDj_1234$sres, fit1234$sres) * sd(fit1234$sres) / sd(fitDj_1234$sres)
+  bDj = mean(fit1234$sres) - mDj * mean(fitDj_1234$sres)
+  
+  abline(bDj, mDj, col = "red", lwd = 3)
+}
+
+plot(fit1_2345$sres, fit2345$sres,
+     main= "AV plot for X1",
+     xlab= "sres for X1~(X2,X3,C,D)",
+     ylab= "sres for Y~(X2,X3,C,D)")
+abline(0,0,lwd=2)
+b1 = mean(fit2345$sres) - m1 * mean(fit1_2345$sres)
+abline(b1,m1,col="red", lwd=3)
+
+plot(fit2_1345$sres, fit1345$sres,
+     main= "AV plot for X2",
+     xlab= "sres for x2~(X1,X3,C,D)",
+     ylab= "sres for y~(X1,X3,C,D)")
+abline(0,0,lwd=2)
+b2 = mean(fit1345$sres) - m1 * mean(fit2_1345$sres)
+abline(b2, m2, col="red", lwd=3)
+
+plot(fit3_1245$sres, fit1245$sres,
+     main= "AV plot for X3",
+     xlab= "sres for X3~(X1,X2,C,D)",
+     ylab= "sres for y~(X1,X2,C,D)")
+abline(0,0,lwd=2)
+b3 = mean(fit1245$sres)- m1*mean(fit3_1245$sres)
+abline(b3, m3, col="red", lwd=3)
 ```
 
 The slopes reinforce the conclusions drawn from the drop-one analysis. Obesity shows the largest partial slope (≈ 0.336), indicating a substantial independent relationship with life expectancy after controlling for all other predictors. CO₂ emissions and health expenditure display comparatively small slopes (≈ 0.118–0.121), consistent with their weak drop-one effects.
@@ -956,9 +991,21 @@ Despite these limitations, the models demonstrate strong predictive utility and 
 
 This appendix contains all custom functions used throughout the analysis, ensuring full transparency and reproducibility of results.
 
-### Function 1: mylm - Custom Linear Regression using SVD
+### Function 1: partial_slope – Partial Slope 
 
-This function implements linear regression using Singular Value Decomposition (SVD) to compute the regression coefficients and associated statistics.
+```{r}
+partial_slope = function(X, Y, target_col, control_cols) {
+  X_others = cbind(X[, control_cols])
+  beta_Y = solve(t(X_others) %*% X_others) %*% t(X_others) %*% Y
+  beta_X = solve(t(X_others) %*% X_others) %*% t(X_others) %*% X[, target_col]
+  e_Y = Y - X_others %*% beta_Y
+  e_X1 = X[, target_col] - X_others %*% beta_X
+  slope = cor(e_X1, e_Y)
+  return(slope)
+}
+```
+
+### Function 2: mylm - Linear Regression
 
 ```{r mylm_function}
 mylm = function(y, Xk) {
@@ -1030,9 +1077,7 @@ mylm = function(y, Xk) {
 }
 ```
 
-### Function 2: my_drop1_ss - Drop-One Sum-of-Squares Analysis
-
-This function calculates the reduction in model sum-of-squares when each predictor is removed one at a time.
+### Function 3: my_drop1_ss - Drop-One Sum-of-Squares Analysis
 
 ```{r drop1_function}
 my_drop1_ss = function(y, Xk) {
@@ -1072,9 +1117,7 @@ my_drop1_ss = function(y, Xk) {
 }
 ```
 
-### Function 3: seq_ss - Sequential Sum-of-Squares
-
-This function calculates the sequential (Type I) sum-of-squares for predictors added in a specified order.
+### Function 4: seq_ss - Sequential Sum-of-Squares
 
 ```{r seqss_function}
 seq_ss = function(y, X, ord){
@@ -1107,9 +1150,7 @@ seq_ss = function(y, X, ord){
 }
 ```
 
-### Function 4: mlr - Multiple Linear Regression
-
-This function performs standard multiple linear regression and returns the coefficient estimates.
+### Function 5: mlr - Multiple Linear Regression
 
 ```{r mlr_function}
 mlr = function(X, Y){
@@ -1119,9 +1160,7 @@ mlr = function(X, Y){
 }
 ```
 
-### Function 5: lasso - Lasso Regression with Penalty Parameter
-
-This function fits a Lasso regression model with a specified penalty parameter lambda.
+### Function 6: lasso - Lasso Regression with Penalty Parameter
 
 ```{r lasso_function}
 lasso = function(X, Y, lam, seedx=1234){
@@ -1163,9 +1202,7 @@ lasso = function(X, Y, lam, seedx=1234){
 }
 ```
 
-### Function 6: lambda - Lasso Lambda Optimization
-
-This function finds the optimal lambda value for Lasso regression by minimizing AIC across a sequence of lambda values.
+### Function 7: lambda - Lasso Lambda Optimization
 
 ```{r lambda_function}
 lambda = function(X, Y, lambda_seq){
