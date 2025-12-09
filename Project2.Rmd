@@ -12,7 +12,7 @@ Life expectancy says a lot about how people live and the conditions they experie
 
 The data come from Kaggle’s Life Expectancy 2000–2015 dataset (<https://www.kaggle.com/datasets/vrec99/life-expectancy-2000-2015> ), which combines information from the World Health Organization, World Bank, and the United Nations.
 
-## Section 1 – Multiple Linear Regression Model for Life Expectancy
+## Multiple Linear Regression Model for Life Expectancy
 
 In this section, we model life expectancy using multiple predictors in order to better understand how different factors relate to global life expectancy. Rather than analyzing each variable separately, multiple linear regression allows us to examine how these predictors work together to explain variation in life expectancy.
 
@@ -250,14 +250,29 @@ lambda = function(X, Y, lambda_seq){
   ))
 }
 
-partial_slope = function(X, Y, target_col, control_cols) {
-  X_others = cbind(X[, control_cols])
-  beta_Y = solve(t(X_others) %*% X_others) %*% t(X_others) %*% Y
-  beta_X = solve(t(X_others) %*% X_others) %*% t(X_others) %*% X[, target_col]
-  e_Y = Y - X_others %*% beta_Y
-  e_X1 = X[, target_col] - X_others %*% beta_X
-  slope = cor(e_X1, e_Y)
-  return(slope)
+partial_slope = function(Xk, Y, X_others) {
+  beta_Y = solve(t(X_others) %*% X_others) %*% (t(X_others) %*% Y)
+  beta_X = solve(t(X_others) %*% X_others) %*% (t(X_others) %*% Xk)
+  e_Y = Y  - X_others %*% beta_Y
+  e_X1 = Xk - X_others %*% beta_X
+  cor(e_X1, e_Y)
+}
+
+VIF_MCI = function(target, predictors) {
+  X_others = cbind(1, predictors)
+  beta = solve(t(X_others) %*% X_others) %*% (t(X_others) %*% target)
+  y_hat = X_others %*% beta
+  SSE = sum((target - y_hat)^2)
+  SST = sum((target - mean(target))^2)
+  R2 = 1 - SSE / SST
+  VIF = 1 / (1 - R2)
+  MCI = sqrt(VIF)
+  
+  return(list(
+    R2 = R2,
+    VIF = VIF,
+    MCI = MCI
+  ))
 }
 ```
 
@@ -281,7 +296,7 @@ $$ we computed the fitted values and residuals as: $$
 \hat{Y} = X\hat{\beta}, \quad \hat{\varepsilon} = Y - \hat{Y}
 $$
 
-```{r linearity, fig.width=5, fig.height=4 }
+```{r linearity, fig.width=5, fig.height=4, fig.align='center'}
 beta_hat = solve(t(X) %*% X) %*% (t(X) %*% Y)
 Y_hat = X %*% beta_hat
 residuals = Y - Y_hat
@@ -304,7 +319,7 @@ The standardized residuals are defined as: $$
 \hat{\varepsilon}_k^{\,S} = \frac{\hat{\varepsilon}_k}{\sqrt{\hat{\sigma}^2 (1 - h_k)}}
 $$ where $\hat{\sigma}^2$ is the estimated error variance and $h_k$ is the leverage value from the hat matrix.
 
-```{r normality, fig.width=5, fig.height=4}
+```{r normality, fig.width=5, fig.height=4, fig.align='center'}
 n = length(Y)
 p = ncol(X) - 1
 SSE = sum(residuals^2)
@@ -360,7 +375,7 @@ $$this assumption means that the spread of the residuals should be approximately
 
 To assess this assumption, we again examined the residuals versus fitted values plot. If the error variance is constant, the residuals should form a horizontal band with roughly the same vertical spread across the range of fitted values.
 
-```{r homoscedasticity, fig.width=5, fig.height=4}
+```{r homoscedasticity, fig.width=5, fig.height=4, fig.align='center'}
 plot(Y_hat, residuals, cex=0.1, main="Residuals vs Fitted Values")
 abline(0, 0, lwd=2, col='red')
 ```
@@ -375,7 +390,7 @@ From this plot, the residuals remain centered around zero, but the vertical spre
 
 The independence assumption means that one observation’s error should not be related to another’s. In this data set, each observation represents a country in a given year. Because life expectancy for a given country is naturally related from one year to the next, this creates a time-based structure where observations across years are likely dependent.As a result, the independence assumption is likely violated for this model.
 
-## Section 2 – Multicollinearity
+### Multicollinearity
 
 Multicollinearity is the strong correlation among the predictors in a regression model. When predictors are highly correlated, the variances of the estimated regression coefficients can become inflated, which makes the estimates unstable.
 
@@ -388,59 +403,11 @@ $$
 Larger VIF and MCI values indicate more severe multicollinearity.
 
 ```{r multicollinearity}
-# VIF for CO2 (X1)
-X_others = cbind(1, X2, X3, C, D)
-beta_CO2 = solve(t(X_others) %*% X_others) %*% (t(X_others) %*% X1)
-y_hat_CO2 = X_others %*% beta_CO2
-SSE_CO2 = sum((X1 - y_hat_CO2)^2)
-SST_CO2 = sum((X1 - mean(X1))^2)
-R2_CO2 = 1 - SSE_CO2/SST_CO2
-VIF_CO2 = 1 / (1 - R2_CO2)
-MCI_CO2 = sqrt(VIF_CO2)
-
-# VIF for Health Expenditure (X2)
-X_others = cbind(1, X1, X3, C, D)
-beta_expend = solve(t(X_others) %*% X_others) %*% (t(X_others) %*% X2)
-y_hat_expend = X_others %*% beta_expend
-SSE_expend = sum((X2 - y_hat_expend)^2)
-SST_expend = sum((X2 - mean(X2))^2)
-R2_expend = 1 - SSE_expend/SST_expend
-VIF_expend = 1 / (1 - R2_expend)
-MCI_expend = sqrt(VIF_expend)
-
-# VIF for Obesity (X3)
-X_others = cbind(1, X1, X2, C, D)
-beta_obesity = solve(t(X_others) %*% X_others) %*% (t(X_others) %*% X3)
-y_hat_obesity = X_others %*% beta_obesity
-SSE_obesity = sum((X3 - y_hat_obesity)^2)
-SST_obesity = sum((X3 - mean(X3))^2)
-R2_obesity = 1 - SSE_obesity/SST_obesity
-VIF_obesity = 1 / (1 - R2_obesity)
-MCI_obesity = sqrt(VIF_obesity)
-
-# VIF for Continent (C) - average across all continent columns
-X_others = cbind(1, X1, X2, X3, D)
-VIF_continent_vec = numeric(ncol(C))
-for(j in 1:ncol(C)){
-  beta_c = solve(t(X_others) %*% X_others) %*% (t(X_others) %*% C[,j])
-  y_hat_c = X_others %*% beta_c
-  SSE_c = sum((C[,j] - y_hat_c)^2)
-  SST_c = sum((C[,j] - mean(C[,j]))^2)
-  R2_c = 1 - SSE_c/SST_c
-  VIF_continent_vec[j] = 1 / (1 - R2_c)
-}
-VIF_continent = mean(VIF_continent_vec)
-MCI_continent = sqrt(VIF_continent)
-
-# VIF for Least Developed (D)
-X_others = cbind(1, X1, X2, X3, C)
-beta_develop = solve(t(X_others) %*% X_others) %*% (t(X_others) %*% D)
-y_hat_develop = X_others %*% beta_develop
-SSE_develop = sum((D - y_hat_develop)^2)
-SST_develop = sum((D - mean(D))^2)
-R2_develop = 1 - SSE_develop/SST_develop
-VIF_develop = 1 / (1 - R2_develop)
-MCI_develop = sqrt(VIF_develop)
+VIF_CO2 = VIF_MCI(X1, cbind(X2,X3,C,D))
+VIF_expend = VIF_MCI(X2, cbind(X1,X3,C,D))
+VIF_obesity = VIF_MCI(X3, cbind(X1,X2,C,D))
+VIF_continent = VIF_MCI(C, cbind(X1,X2,X3,D))
+VIF_develop = VIF_MCI(D, cbind(X1,X2,X3,C))
 ```
 
 ```{r VIFtable, echo = FALSE}
@@ -451,17 +418,17 @@ VIF_MCI_table = data.frame(
                 "Continent",
                 "Least Developed Status"),
   
-  VIF = round(c(VIF_CO2,
-                VIF_expend,
-                VIF_obesity,
-                VIF_continent,
-                VIF_develop), 4),
+  VIF = round(c(VIF_CO2$VIF,
+                VIF_expend$VIF,
+                VIF_obesity$VIF,
+                VIF_continent$VIF,
+                VIF_develop$VIF), 4),
   
-  MCI = round(c(MCI_CO2,
-                MCI_expend,
-                MCI_obesity,
-                MCI_continent,
-                MCI_develop), 4)
+  MCI = round(c(VIF_CO2$MCI,
+                VIF_expend$MCI,
+                VIF_obesity$MCI,
+                VIF_continent$MCI,
+                VIF_develop$MCI), 4)
 )
 
 VIF_MCI_table
@@ -483,47 +450,12 @@ For each predictor $X_k$, the standardized slope is: $$
 $$
 
 ```{r predsig}
-# CO2: regress on all others (Health, Obesity, Continent, LD)
-X_others_CO2 = cbind(1, X2, X3, C, D)
-beta_Y_CO2 = solve(t(X_others_CO2) %*% X_others_CO2) %*% t(X_others_CO2) %*% Y
-beta_X1_CO2 = solve(t(X_others_CO2) %*% X_others_CO2) %*% t(X_others_CO2) %*% X1
-e_Y_CO2 = Y - X_others_CO2 %*% beta_Y_CO2
-e_X1_CO2 = X1 - X_others_CO2 %*% beta_X1_CO2
-slope_CO2 = cor(e_X1_CO2, e_Y_CO2)
+slope_CO2 = partial_slope(X1, Y, cbind(1,X2,X3,C,D))
+slope_expend = partial_slope(X2, Y, cbind(1,X1,X3,C,D))
+slope_obesity = partial_slope(X3, Y, cbind(1,X1,X2,C,D))
+slope_continent = partial_slope(C, Y, cbind(1,X1,X2,X3,D))
+slope_develop = partial_slope(D, Y, cbind(1,X1,X2,X3,C))
 
-# Health: regress on all others (CO2, Obesity, Continent, LD)
-X_others_expend = cbind(1, X1, X3, C, D)
-beta_Y_expend = solve(t(X_others_expend) %*% X_others_expend) %*% t(X_others_expend) %*% Y
-beta_X2_expend = solve(t(X_others_expend) %*% X_others_expend) %*% t(X_others_expend) %*% X2
-e_Y_expend = Y - X_others_expend %*% beta_Y_expend
-e_X2_expend = X2 - X_others_expend %*% beta_X2_expend
-slope_expend = cor(e_X2_expend, e_Y_expend)
-
-# Obesity: regress on all others (CO2, Health, Continent, LD)
-X_others_obesity = cbind(1, X1, X2, C, D)
-beta_Y_obesity = solve(t(X_others_obesity) %*% X_others_obesity) %*% t(X_others_obesity) %*% Y
-beta_X3_obesity = solve(t(X_others_obesity) %*% X_others_obesity) %*% t(X_others_obesity) %*% X3
-e_Y_obesity = Y - X_others_obesity %*% beta_Y_obesity
-e_X3_obesity = X3 - X_others_obesity %*% beta_X3_obesity
-slope_obesity = cor(e_X3_obesity, e_Y_obesity)
-
-# Continent: regress on all others (CO2, Health, Obesity, LD)
-X_others_continent = cbind(1, X1, X2, X3, D)
-beta_Y_continent = solve(t(X_others_continent) %*% X_others_continent) %*% t(X_others_continent) %*% Y
-beta_C_continent = solve(t(X_others_continent) %*% X_others_continent) %*% t(X_others_continent) %*% C
-e_Y_continent = Y - X_others_continent %*% beta_Y_continent
-e_C_continent = C - X_others_continent %*% beta_C_continent
-# For multi-column C, compute fitted values from continent part
-C_fitted = e_C_continent %*% solve(t(e_C_continent) %*% e_C_continent) %*% t(e_C_continent) %*% e_Y_continent
-slope_continent = cor(C_fitted, e_Y_continent)
-
-# Least Developed: regress on all others (CO2, Health, Obesity, Continent)
-X_others_develop = cbind(1, X1, X2, X3, C)
-beta_Y_develop = solve(t(X_others_develop) %*% X_others_develop) %*% t(X_others_develop) %*% Y
-beta_D_develop = solve(t(X_others_develop) %*% X_others_develop) %*% t(X_others_develop) %*% D
-e_Y_develop = Y - X_others_develop %*% beta_Y_develop
-e_D_develop = D - X_others_develop %*% beta_D_develop
-slope_develop = cor(e_D_develop, e_Y_develop)
 ```
 
 ```{r predsigtable, echo=FALSE}
@@ -537,44 +469,50 @@ slope_table = data.frame(
   Standardized_Slope = round(c(slope_CO2,
                                slope_expend,
                                slope_obesity,
-                               slope_continent,
+                               slope_continent[1],
                                slope_develop), 4)
 )
 
 slope_table
 ```
 
-Among all predictors, adult obesity has the strongest unique relationship with life expectancy. The positive standardized slope of 0.4770 suggests that, when controlling for the other variables, countries with lower obesity rates tend to have noticeably higher life expectancy. Continent and least developed status also show moderately strong unique effects, with standardized slopes of 0.3477 and 0.3423. This indicates that even after accounting for environmental and health-related variables, regional and developmental differences still play an important role in explaining life expectancy. Health expenditure has a weaker but still meaningful positive relationship with life expectancy (0.2403), suggesting that increased healthcare spending is associated with longer life expectancy, though its effect is not as strong as obesity or structural factors. Finally, CO$_2$ emissions have the smallest standardized slope (0.0923), indicating that once the other predictors are controlled for, CO$_2$ emissions have only a weak unique relationship with life expectancy in this model.
+Overall, the partial slope results show clear differences in how strongly each predictor relates to the outcome once the other variables are held constant. Adult obesity stood out as the strongest positive predictor (standardized slope = 0.3353), suggesting that it has the most consistent relationship with the outcome across the model. Continent also showed a moderate positive association (standardized slope = 0.2195), indicating that geographic context still matters even after accounting for the other variables.
 
-Overall, these results suggest that health-related risk (obesity) and structural factors (continent and development status) are the strongest unique predictors of life expectancy, while environmental impact through CO$_2$ and healthcare spending play a smaller role when considered alongside the other variables.
+In comparison, CO$_2$ emissions (0.1188) and health expenditure (0.1215) both had smaller positive relationships with the outcome, making them weaker predictors overall. Finally, least developed status showed a small negative association (standardized slope = −0.0917), meaning that higher levels of developmental status were slightly associated with lower values of the outcome. Taken together, these results suggest that behavioral and contextual factors are playing a larger role than broader economic or environmental indicators in this model.
 
 ### **Test-Point Predictions**
 
-To illustrate the practical application of the regression model, we selected three test points representing observations with substantially different life expectancy values: one from the upper range, one from the lower range, and one near the median.
+To show how this model works in real-world contexts, I selected three test points with clearly different life expectancy levels: one from the higher end of the distribution (Spain, 2015), one from the lower end (Nigeria, 2000), and one near the middle (Iran, 2009). These points allow us to see how well the model performs across very different social and health conditions.
 
 ```{r testpoints}
-spain_idx = which(data$Country == "Spain" & data$Year == 2015)
-nigeria_idx = which(data$Country == "Nigeria" & data$Year == 2000)
-iran_idx = which(data$Country == "Iran" & data$Year == 2009)
+spain = which(data$Country == "Spain" & data$Year == 2015)
+nigeria = which(data$Country == "Nigeria" & data$Year == 2000)
+iran = which(data$Country == "Iran" & data$Year == 2009)
 
-pred_spain = sum(X[spain_idx, ] * beta_hat)
-pred_nigeria = sum(X[nigeria_idx, ] * beta_hat)
-pred_iran = sum(X[iran_idx, ] * beta_hat)
+pred_spain = sum(X[spain, ] * beta_hat)
+pred_nigeria = sum(X[nigeria, ] * beta_hat)
+pred_iran = sum(X[iran, ] * beta_hat)
 
 test_points_table = data.frame(
   Country = c("Spain", "Nigeria", "Iran"),
   Year = c(2015, 2000, 2009),
-  Actual_Life_Expectancy = round(c(Y[spain_idx], Y[nigeria_idx], Y[iran_idx]), 2),
-  Predicted_Life_Expectancy = round(c(pred_spain, pred_nigeria, pred_iran), 2),
-  Residual = round(c(Y[spain_idx] - pred_spain, 
-                     Y[nigeria_idx] - pred_nigeria, 
-                     Y[iran_idx] - pred_iran), 2)
+  Actual_Life_Expectancy = round(c(Y[spain], 
+                                   Y[nigeria], 
+                                   Y[iran]), 2),
+  Predicted_Life_Expectancy = round(c(pred_spain, 
+                                      pred_nigeria, 
+                                      pred_iran), 2),
+  Residual = round(c(Y[spain] - pred_spain, 
+                     Y[nigeria] - pred_nigeria, 
+                     Y[iran] - pred_iran), 2)
 )
 
 test_points_table
 ```
 
-The model demonstrates strong predictive performance across diverse contexts. For Spain in 2015, a high-income European nation with well-developed healthcare infrastructure, the model predicted 78.69 years compared to an actual life expectancy of 82.83 years, showing a modest underestimation. For Nigeria in 2000, representing a developing nation with limited health resources, the model predicted 57.86 years against an actual value of 46.27 years, overestimating by approximately 11.6 years and highlighting potential limitations in capturing extreme health crises or data collection challenges in lower-income settings. The model performed exceptionally well for Iran in 2009, predicting 73.20 years compared to an actual 73.03 years, with a residual of only -0.18 years. These predictions could inform international development organizations in prioritizing aid allocation, help governments benchmark their health outcomes against model expectations, and identify countries where observed life expectancy substantially deviates from predictions based on measured health and structural indicators.
+For Spain in 2015, a high-income country with strong healthcare infrastructure, the model predicted a life expectancy of 78.69 years, compared to the actual value of 82.83 years, resulting in a modest underestimation. For Nigeria in 2000, which represents a lower-income context with more limited health resources, the model predicted 57.86 years, while the actual life expectancy was 46.27 years. This larger overestimation (about 11.6 years) suggests that the model may have difficulty fully capturing extreme health challenges or structural inequalities in lower-resource settings. In contrast, the model performed very accurately for Iran in 2009, predicting 73.20 years compared to an actual value of 73.03 years, with a residual of only −0.18 years.
+
+Together, these test points show that the model performs reasonably well across very different regions, but also illustrates where its limitations become more noticeable. In real-world applications, predictions like these could be used by international health and development organizations to identify countries that are performing much better or worse than expected.
 
 ### **Variable Selection Analysis**
 
@@ -586,7 +524,7 @@ To evaluate the contributions of each predictor to the variability in Life Expec
 
 The drop-one analysis quantifies the reduction in model sum-of-squares when each predictor is removed from the model, while the AV-plot slope isolates the partial effect of each predictor after controlling for all remaining covariates. Together, these analyses provide an assessment of predictor relevance in the presence of multicollinearity and categorical structure.
 
-#### **Drop-One Sum-of-Squares Analysis**
+#### **1. Drop-One Sum-of-Squares Analysis**
 
 ```{r drop1}
 Xk = cbind(X1, X2, X3, C, D)
@@ -598,84 +536,27 @@ The drop-one results show that the continent indicators account for the largest 
 
 Among the continuous predictors, obesity prevalence has the strongest unique effect (ΔSSM ≈ 4.86%), whereas both CO₂ emissions and health expenditure account for less than 1% of the unique model sum-of-squares. The Least Developed classification shows the smallest reduction in SSM when removed (≈ 0.33%), indicating a minimal independent contribution once other predictors are controlled.
 
-#### **Added-Variable (AV) Plots**
+#### 2. Added-Variable (AV) Plots
 
-AV plots were generated for each continuous and categorical predictor to visualize their partial relationship with life expectancy after adjusting for all remaining variables. The slope of each AV plot corresponds directly to the partial regression coefficient for that predictor in the full model.
+AV plots were generated for each predictor to visualize their partial relationship with life expectancy after adjusting for all remaining variables. The slope of each AV plot corresponds directly to the partial regression coefficient for that predictor in the full model.
 
-```{r avplots, fig.width=8, fig.height=6}
-fit12345 = mylm(Y, cbind(X1,X2,X3,C,D))
-fit1234= mylm(Y, cbind(X1,X2,X3,C))
-fit1235= mylm(Y, cbind(X1,X2,X3,D))
-fit1245= mylm(Y, cbind(X1,X2,C,D))
-fit1345= mylm(Y, cbind(X1,X3,C,D))
-fit2345 = mylm(Y, cbind(X2,X3,C,D))
+```{r avplots, fig.width=15, fig.height=6}
+par(mfrow = c(1,3))
 
-fit1_2345= mylm(X1, cbind(X2,X3,C,D))
-fit2_1345= mylm(X2, cbind(X1,X3,C,D))
-fit3_1245= mylm(X3, cbind(X1,X2,C,D))
-fit4_1235= mylm(C, cbind(X1,X2,X3,D))
-fit5_1234= mylm(D, cbind(X1,X2,X3,C))
+fit2345 = mylm(Y, cbind(X2,X3,C,D)) 
+fit1_2345 = mylm(X1, cbind(X2,X3,C,D))
+m1 = cor(fit1_2345$sres, fit2345$sres) * sd(fit2345$sres)/sd(fit1_2345$sres)
 
-m1 = cor(fit1_2345$sres, fit2345$sres)*sd(fit2345$sres)/sd(fit1_2345$sres)
-m2 = cor(fit2_1345$sres, fit1345$sres)*sd(fit1345$sres)/sd(fit2_1345$sres)
-m3 = cor(fit3_1245$sres, fit1245$sres)*sd(fit1245$sres)/sd(fit3_1245$sres)
-mC = numeric(ncol(C))
-for (j in 1:ncol(C)) {
-  Cj = C[, j]
-  fitCj_1235 = mylm(Cj, cbind(X1, X2, X3, D))
-  mC[j] = cor(fitCj_1235$sres, fit1235$sres) *
-    sd(fit1235$sres) / sd(fitCj_1235$sres)
-}
+fit1345 = mylm(Y, cbind(X1,X3,C,D))
+fit2_1345 = mylm(X2, cbind(X1,X3,C,D))
+m2 = cor(fit2_1345$sres, fit1345$sres) * sd(fit1345$sres)/sd(fit2_1345$sres)
 
-mD = cor(fit5_1234$sres, fit1234$sres) * sd(fit1234$sres) / sd(fit5_1234$sres)
-
-# AV plots for each continent
-for (j in 1:ncol(C)) {
-  Cj = C[, j]
-  fitCj_1235 = mylm(Cj, cbind(X1, X2, X3, D))
-
-  plot(fitCj_1235$sres, fit1235$sres,
-       main = paste("AV plot for Continent:", colnames(C)[j]),
-       xlab = paste("sres for", colnames(C)[j], "~ (X1, X2, X3, D)"),
-       ylab = "sres for Y ~ (X1, X2, X3, D)")
-  abline(h = 0, v = 0, lwd = 2)
-
-  mCj = cor(fitCj_1235$sres, fit1235$sres) * sd(fit1235$sres) / sd(fitCj_1235$sres)
-  bCj = mean(fit1235$sres) - mCj * mean(fitCj_1235$sres)
-
-  abline(bCj, mCj, col = "red", lwd = 3)
-}
-
-# AV plot for Least Developed
-# Handle D whether it's a matrix or vector
-if (is.matrix(D) && ncol(D) > 1) {
-  # Multiple columns - loop through each
-  for (j in 1:ncol(D)) {
-    Dj = D[, j]
-    fitDj_1234 = mylm(Dj, cbind(X1, X2, X3, C))
-
-    plot(fitDj_1234$sres, fit1234$sres,
-         main = paste("AV plot for Least Developed:", colnames(D)[j]),
-         xlab = paste("sres for", colnames(D)[j], "~ (X1, X2, X3, C)"),
-         ylab = "sres for Y ~ (X1, X2, X3, C)")
-    abline(0, 0, lwd = 2)
-
-    mDj = cor(fitDj_1234$sres, fit1234$sres) * sd(fit1234$sres) / sd(fitDj_1234$sres)
-    bDj = mean(fit1234$sres) - mDj * mean(fitDj_1234$sres)
-
-    abline(bDj, mDj, col = "red", lwd = 3)
-  }
-} else {
-  # Single column (vector or 1-col matrix) - plot once
-  plot(fit5_1234$sres, fit1234$sres,
-       main = "AV plot for Least Developed",
-       xlab = "sres for Least Developed ~ (X1, X2, X3, C)",
-       ylab = "sres for Y ~ (X1, X2, X3, C)")
-  abline(0, 0, lwd = 2)
-  abline(mean(fit1234$sres) - mD * mean(fit5_1234$sres), mD, col = "red", lwd = 3)
-}
+fit1245 = mylm(Y, cbind(X1,X2,C,D))
+fit3_1245 = mylm(X3, cbind(X1,X2,C,D))
+m3 = cor(fit3_1245$sres, fit1245$sres) * sd(fit1245$sres)/sd(fit3_1245$sres)
 
 plot(fit1_2345$sres, fit2345$sres,
+     pch = 16, cex = 0.3,
      main= "AV plot for X1",
      xlab= "sres for X1~(X2,X3,C,D)",
      ylab= "sres for Y~(X2,X3,C,D)")
@@ -684,6 +565,7 @@ b1 = mean(fit2345$sres) - m1 * mean(fit1_2345$sres)
 abline(b1,m1,col="red", lwd=3)
 
 plot(fit2_1345$sres, fit1345$sres,
+     pch = 16, cex = 0.3,
      main= "AV plot for X2",
      xlab= "sres for x2~(X1,X3,C,D)",
      ylab= "sres for y~(X1,X3,C,D)")
@@ -692,6 +574,7 @@ b2 = mean(fit1345$sres) - m1 * mean(fit2_1345$sres)
 abline(b2, m2, col="red", lwd=3)
 
 plot(fit3_1245$sres, fit1245$sres,
+     pch = 16, cex = 0.3,
      main= "AV plot for X3",
      xlab= "sres for X3~(X1,X2,C,D)",
      ylab= "sres for y~(X1,X2,C,D)")
@@ -700,19 +583,14 @@ b3 = mean(fit1245$sres)- m1*mean(fit3_1245$sres)
 abline(b3, m3, col="red", lwd=3)
 ```
 
-The slopes reinforce the conclusions drawn from the drop-one analysis. Obesity shows the largest partial slope (≈ 0.336), indicating a substantial independent relationship with life expectancy after controlling for all other predictors. CO₂ emissions and health expenditure display comparatively small slopes (≈ 0.118–0.121), consistent with their weak drop-one effects.
+The slopes reinforce the conclusions drawn from the drop-one analysis. Obesity shows the largest partial slope ($\approx$ 0.336), indicating a substantial independent relationship with life expectancy after controlling for all other predictors. CO₂ emissions and health expenditure display comparatively small slopes ( \$\\approx\$ 0.118–0.121), consistent with their weak drop-one effects.
 
-The continent variables have slopes as high as 0.241, exceeding or closely matching the slopes of the continuous predictors. These values demonstrate that regional differences remain a major explanatory component, even after covariate adjustment. The smaller slopes for some continents (≈ 0.03–0.07) indicate heterogeneity among regions, but the overall magnitude confirms that geographical classification plays a significant role in predicting life expectancy. The negative slope (–0.0919) suggests that, when all other predictors are held constant, countries marked as Least Developed tend to have slightly lower adjusted life expectancy. However, the magnitude is small, supporting the drop-one result that this indicator contributes very little unique explanatory power.
+#### **3. Lasso Regression Penalization Analysis**
 
-#### **Lasso Regression Penalization Analysis**
-
-Lasso regression applies an L1 penalty to the regression coefficients, which can shrink coefficients of less important predictors to exactly zero, effectively performing automatic variable selection. To identify the optimal penalty parameter, we tested lambda values spanning from 10⁻⁵ to 10¹⁰ on a logarithmic scale and selected the value that minimized the Akaike Information Criterion (AIC).
+Lasso regression applies an L1 penalty to the regression coefficients, which can shrink coefficients of less important predictors to exactly zero, effectively performing automatic variable selection. To identify the optimal penalty parameter, we tested lambda values spanning from $10^{-5}$ to $10^{10}$ on a logarithmic scale and selected the value that minimized the AIC.
 
 ```{r lasso}
-# Prepare design matrix
 X_no_int = cbind(X1, X2, X3, C, D)
-
-# Lambda sequence on log scale from 10^-5 to 10^10
 lambda_seq = 10^seq(-5, 10, by = 0.1)
 n = length(Y)
 p_total = ncol(X_no_int)
@@ -855,59 +733,18 @@ The optimal lambda value provides a statistically solid ridge regression model w
 To illustrate the practical differences between ordinary least squares and ridge regression, we evaluate both models at three test points representing significantly differing predictor values.
 
 ```{r ridge_testpoints}
-# Define three test points with differing predictor values
-# Test point 1: Low CO2, low health expenditure, low obesity
-test1 = c(1,           # intercept
-          2.0,         # CO2 emissions
-          500,         # Health expenditure
-          5.0,         # Obesity
-          0, 0, 0, 1,  # Continent (Asia)
-          0)           # Not least developed
 
-# Test point 2: Medium values
-test2 = c(1,           # intercept
-          6.0,         # CO2 emissions
-          2000,        # Health expenditure
-          15.0,        # Obesity
-          1, 0, 0, 0,  # Continent (Africa)
-          1)           # Least developed
 
-# Test point 3: High CO2, high health expenditure, high obesity
-test3 = c(1,           # intercept
-          12.0,        # CO2 emissions
-          5000,        # Health expenditure
-          30.0,        # Obesity
-          0, 1, 0, 0,  # Continent (Europe)
-          0)           # Not least developed
 
-# OLS predictions
-pred_ols_1 = sum(test1 * beta_hat)
-pred_ols_2 = sum(test2 * beta_hat)
-pred_ols_3 = sum(test3 * beta_hat)
 
-# Ridge predictions
-pred_ridge_1 = sum(test1 * beta_ridge)
-pred_ridge_2 = sum(test2 * beta_ridge)
-pred_ridge_3 = sum(test3 * beta_ridge)
-
-# Comparison table
-comparison = data.frame(
-  Test_Point = c("Low (Asia)", "Medium (Africa, LD)", "High (Europe)"),
-  OLS_Prediction = round(c(pred_ols_1, pred_ols_2, pred_ols_3), 2),
-  Ridge_Prediction = round(c(pred_ridge_1, pred_ridge_2, pred_ridge_3), 2),
-  Difference = round(c(pred_ols_1 - pred_ridge_1,
-                       pred_ols_2 - pred_ridge_2,
-                       pred_ols_3 - pred_ridge_3), 2)
-)
-
-comparison
+# this needs to be 
 ```
 
 The predictions from both models are very similar, with differences typically less than 1-2 years of life expectancy. This suggests that while ridge regression provides improved stability (lower condition number), it does not drastically alter the predictions for these test cases. The small differences indicate that the original OLS model was not severely affected by multicollinearity, consistent with our earlier VIF analysis showing moderate VIF values.
 
 However, the ridge model's improved stability would be particularly valuable when making predictions for data points outside the observed range or when the model is used in applications where numerical precision is critical. The subtle differences between OLS and ridge predictions confirm that both methods agree on the general relationships in the data, but ridge provides a more robust framework for inference.
 
-## Section 3 – Logistic Regression Model for High Life Expectancy
+## Logistic Regression Model for High Life Expectancy
 
 In this section, we shift from predicting continuous life expectancy values to classifying countries as having "high" or "low" life expectancy based on whether they exceed the global median. This binary classification allows us to identify which factors are most strongly associated with achieving above-average life expectancy outcomes.
 
@@ -1134,7 +971,7 @@ This appendix contains all custom functions used throughout the analysis, ensuri
 
 ```{r}
 partial_slope = function(X, Y, target_col, control_cols) {
-  X_others = cbind(X[, control_cols])
+  X_others = cbind(X[1, control_cols])
   beta_Y = solve(t(X_others) %*% X_others) %*% t(X_others) %*% Y
   beta_X = solve(t(X_others) %*% X_others) %*% t(X_others) %*% X[, target_col]
   e_Y = Y - X_others %*% beta_Y
@@ -1144,7 +981,28 @@ partial_slope = function(X, Y, target_col, control_cols) {
 }
 ```
 
-### Function 2: mylm - Linear Regression
+### Function 2: VIF_MCI – Multicolinearity
+
+```{r VIF_MCI}
+VIF_MCI = function(target, predictors) {
+  X_others = cbind(1, predictors)
+  beta = solve(t(X_others) %*% X_others) %*% (t(X_others) %*% target)
+  y_hat = X_others %*% beta
+  SSE = sum((target - y_hat)^2)
+  SST = sum((target - mean(target))^2)
+  R2 = 1 - SSE / SST
+  VIF = 1 / (1 - R2)
+  MCI = sqrt(VIF)
+  
+  return(list(
+    R2 = R2,
+    VIF = VIF,
+    MCI = MCI
+  ))
+}
+```
+
+### Function 3: mylm - Linear Regression
 
 ```{r mylm_function}
 mylm = function(y, Xk) {
@@ -1216,7 +1074,7 @@ mylm = function(y, Xk) {
 }
 ```
 
-### Function 3: my_drop1_ss - Drop-One Sum-of-Squares Analysis
+### Function 4: my_drop1_ss - Drop-One Sum-of-Squares Analysis
 
 ```{r drop1_function}
 my_drop1_ss = function(y, Xk) {
@@ -1256,7 +1114,7 @@ my_drop1_ss = function(y, Xk) {
 }
 ```
 
-### Function 4: seq_ss - Sequential Sum-of-Squares
+### Function 5: seq_ss - Sequential Sum-of-Squares
 
 ```{r seqss_function}
 seq_ss = function(y, X, ord){
@@ -1289,7 +1147,7 @@ seq_ss = function(y, X, ord){
 }
 ```
 
-### Function 5: mlr - Multiple Linear Regression
+### Function 6: mlr - Multiple Linear Regression
 
 ```{r mlr_function}
 mlr = function(X, Y){
@@ -1299,7 +1157,7 @@ mlr = function(X, Y){
 }
 ```
 
-### Function 6: lasso - Lasso Regression with Penalty Parameter
+### Function 7: lasso - Lasso Regression with Penalty Parameter
 
 ```{r lasso_function}
 lasso = function(X, Y, lam, seedx=1234){
@@ -1341,7 +1199,7 @@ lasso = function(X, Y, lam, seedx=1234){
 }
 ```
 
-### Function 7: lambda - Lasso Lambda Optimization
+### Function 8: lambda - Lasso Lambda Optimization
 
 ```{r lambda_function}
 lambda = function(X, Y, lambda_seq){
