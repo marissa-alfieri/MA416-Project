@@ -38,9 +38,217 @@ Y = data$Life.Expectancy
 X1 = data$CO2.emissions
 X2 = data$Health.expenditure
 X3 = data$Obesity.among.adults
-C = model.matrix(~ Continent, data)[ , -1]     
-D  = model.matrix(~ Least.Developed, data)[ , -1]   
+C = model.matrix(~ Continent, data)[ , -1]
+D  = model.matrix(~ Least.Developed, data)[ , -1]
 X = cbind(1, X1, X2, X3, C, D)
+```
+
+```{r custom_functions, echo=FALSE}
+# Custom function definitions (full code shown in Appendix)
+
+mylm = function(y, Xk) {
+  n = length(y)
+  v1s = rep(1, n)
+  X = cbind(v1s, Xk)
+
+  S = svd(t(X) %*% X)
+  U = S$u
+  D = diag(S$d)
+  V = S$v
+
+  XtX_inv = V %*% solve(D) %*% t(U)
+
+  betahat = XtX_inv %*% t(X) %*% y
+  H = X %*% XtX_inv %*% t(X)
+  lv = diag(H)
+
+  kappa = sqrt(abs(max(S$d) / min(S$d)))
+
+  yhat = X %*% betahat
+  resid = y - yhat
+  SSE = sum(resid^2)
+  RMSE= sqrt(mean(resid^2))
+
+  if(is.null(dim(Xk)[2])) {
+    p = 1
+  }
+  else {
+    p = ncol(Xk)
+  }
+
+  SST = sd(y)^2 * (n - 1)
+  SSM = SST - SSE
+  MST = SST / (n - 1)
+  MSE = SSE / (n - p - 1)
+  MSM = SSM / p
+
+  sresid = resid / (sqrt(MSE) * sqrt(1 - lv))
+
+  SEbetahat = sqrt(MSE) * sqrt(diag(XtX_inv))
+
+  R2 = 1 - SSE / SST
+  R2_adj = 1 - MSE / MST
+
+  fstat = MSM / MSE
+  pval = pf(fstat, p, n - p - 1, lower.tail = FALSE)
+
+  results = list(
+    "pre"   = yhat,
+    "res"   = resid,
+    "sres"  = sresid,
+    "k"     = kappa,
+    "lev"   = lv,
+    "sse"   = SSE,
+    "ssm"   = SSM,
+    "mse"   = MSE,
+    "msm"   = MSM,
+    "f"     = fstat,
+    "pval"  = pval,
+    "bhat"  = betahat,
+    "sehat" = SEbetahat,
+    "r2"    = R2,
+    "r2adj" = R2_adj,
+    "rmse" = RMSE
+  )
+
+  return(results)
+}
+
+my_drop1_ss = function(y, Xk) {
+  y  = as.numeric(y)
+  Xk = as.matrix(Xk)
+
+  n = length(y)
+  p = ncol(Xk)
+
+  X_full   = cbind(1, Xk)
+  beta_full = solve(t(X_full) %*% X_full) %*% (t(X_full) %*% y)
+  yhat_full = X_full %*% beta_full
+
+  SSM_full = sum((yhat_full - mean(y))^2)
+
+  SSM_minus = numeric(p)
+
+  for (j in 1:p) {
+    X_red = cbind(1, Xk[, -j, drop = FALSE])
+    beta_red = solve(t(X_red) %*% X_red) %*% (t(X_red) %*% y)
+    yhat_red = X_red %*% beta_red
+    SSM_minus[j] = sum((yhat_red - mean(y))^2)
+  }
+
+  Delta = SSM_full - SSM_minus
+  Percent_Change = Delta / SSM_full
+
+  out = data.frame(
+    Variable         = colnames(Xk),
+    SSM_full         = rep(SSM_full, p),
+    SSM_minus_j      = SSM_minus,
+    Delta_SSM        = Delta,
+    Percentage_Change = Percent_Change
+  )
+
+  return(out)
+}
+
+seq_ss = function(y, X, ord){
+  n = length(y)
+  SSM = numeric(length(ord) + 1)
+  vars = character(length(ord) + 1)
+
+  SSM[1] = 0
+  vars[1] = "0"
+
+  for(k in 1:length(ord)){
+    cols = ord[1:k]
+    Xk = cbind(1, X[, cols, drop=FALSE])
+
+    bhat = solve(t(Xk) %*% Xk) %*% (t(Xk) %*% y)
+    yhat = Xk %*% bhat
+
+    SSM[k + 1] = sum((yhat - mean(y))^2)
+    vars[k + 1] = paste(cols, collapse=",")
+  }
+
+  Delta = c(0, diff(SSM))
+
+  data.frame(
+    Step = 0:length(ord),
+    Variables = vars,
+    SSM = round(SSM, 6),
+    Delta_SSM = round(Delta, 6)
+  )
+}
+
+mlr = function(X, Y){
+  X_with_intercept = cbind(1, X)
+  bhat = solve(t(X_with_intercept) %*% X_with_intercept) %*% t(X_with_intercept) %*% Y
+  return(as.vector(bhat))
+}
+
+lasso = function(X, Y, lam, seedx=1234){
+  lam = abs(lam)
+  n = length(Y)
+  X = as.matrix(X)
+  p = dim(X)[2]
+  set.seed(seedx)
+
+  f = function(bhat){
+    res = Y - as.vector(cbind(1, X) %*% bhat)
+    return(sum(res^2) + lam*sum(abs(bhat)))
+  }
+
+  bhat00 = rep(0, p+1)
+  So = optim(bhat00, f, method='Nelder-Mead', control=list(reltol=1e-10))
+  bhat = So$par
+
+  n = length(Y)
+  yhat = cbind(1, X) %*% bhat
+  residuals = Y - yhat
+  rss = sum(residuals^2)
+
+  p_selected = sum(abs(bhat[-1]) > 1e-6)
+
+  loglik = -n/2 * log(2*pi) - n/2 * log(rss/n) - n/2
+
+  aic = -2*loglik + 2*p_selected
+  bic = -2*loglik + p_selected*log(n)
+
+  return(list(
+    coefficients = bhat,
+    lambda = lam,
+    aic = aic,
+    bic = bic,
+    p = p_selected,
+    rss = rss
+  ))
+}
+
+lambda = function(X, Y, lambda_seq){
+  results_list = list()
+
+  for(i in 1:length(lambda_seq)){
+    results_list[[i]] = lasso(X, Y, lam=lambda_seq[i])
+  }
+
+  aic_vals = numeric(length(lambda_seq))
+  bic_vals = numeric(length(lambda_seq))
+
+  for(i in 1:length(lambda_seq)){
+    aic_vals[i] = results_list[[i]]$aic
+    bic_vals[i] = results_list[[i]]$bic
+  }
+
+  optimal_idx = which.min(aic_vals)
+  optimal_lambda = lambda_seq[optimal_idx]
+
+  return(list(
+    optimal_lambda = optimal_lambda,
+    optimal_result = results_list[[optimal_idx]],
+    all_results = results_list,
+    aic_vals = aic_vals,
+    bic_vals = bic_vals
+  ))
+}
 ```
 
 Here, an intercept column of 1’s is included in the design matrix, and dummy variables are created for the categorical predictors (continent and least-developed status) using reference groups.
