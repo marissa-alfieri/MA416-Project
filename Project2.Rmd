@@ -646,21 +646,33 @@ for (j in 1:ncol(C)) {
   abline(bCj, mCj, col = "red", lwd = 3)
 }
 
-# AV plots for least developed
-for (j in 1:ncol(D)) {
-  Dj = D[, j]
-  fitDj_1234 = mylm(Dj, cbind(X1, X2, X3, C))
-  
-  plot(fitDj_1234$sres, fit1234$sres,
-       main = paste("AV plot for Least Developed:", colnames(D)[j]),
-       xlab = paste("sres for", colnames(D)[j], "~ (X1, X2, X3, C)"),
+# AV plot for Least Developed
+# Handle D whether it's a matrix or vector
+if (is.matrix(D) && ncol(D) > 1) {
+  # Multiple columns - loop through each
+  for (j in 1:ncol(D)) {
+    Dj = D[, j]
+    fitDj_1234 = mylm(Dj, cbind(X1, X2, X3, C))
+
+    plot(fitDj_1234$sres, fit1234$sres,
+         main = paste("AV plot for Least Developed:", colnames(D)[j]),
+         xlab = paste("sres for", colnames(D)[j], "~ (X1, X2, X3, C)"),
+         ylab = "sres for Y ~ (X1, X2, X3, C)")
+    abline(0, 0, lwd = 2)
+
+    mDj = cor(fitDj_1234$sres, fit1234$sres) * sd(fit1234$sres) / sd(fitDj_1234$sres)
+    bDj = mean(fit1234$sres) - mDj * mean(fitDj_1234$sres)
+
+    abline(bDj, mDj, col = "red", lwd = 3)
+  }
+} else {
+  # Single column (vector or 1-col matrix) - plot once
+  plot(fit5_1234$sres, fit1234$sres,
+       main = "AV plot for Least Developed",
+       xlab = "sres for Least Developed ~ (X1, X2, X3, C)",
        ylab = "sres for Y ~ (X1, X2, X3, C)")
-  abline(0,  0, lwd = 2)
-  
-  mDj = cor(fitDj_1234$sres, fit1234$sres) * sd(fit1234$sres) / sd(fitDj_1234$sres)
-  bDj = mean(fit1234$sres) - mDj * mean(fitDj_1234$sres)
-  
-  abline(bDj, mDj, col = "red", lwd = 3)
+  abline(0, 0, lwd = 2)
+  abline(mean(fit1234$sres) - mD * mean(fit5_1234$sres), mD, col = "red", lwd = 3)
 }
 
 plot(fit1_2345$sres, fit2345$sres,
