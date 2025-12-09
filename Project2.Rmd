@@ -938,8 +938,8 @@ X_train = X[train_indices, ]
 X1_train = X1[train_indices]
 X2_train = X2[train_indices]
 X3_train = X3[train_indices]
-C_train = C[train_indices, ]
-D_train = D[train_indices, ]
+C_train = C[train_indices, , drop = FALSE]
+D_train = if (is.matrix(D)) D[train_indices, , drop = FALSE] else D[train_indices]
 
 # Testing data
 Y_test = Y_binary[test_indices]
@@ -947,8 +947,8 @@ X_test = X[test_indices, ]
 X1_test = X1[test_indices]
 X2_test = X2[test_indices]
 X3_test = X3[test_indices]
-C_test = C[test_indices, ]
-D_test = D[test_indices, ]
+C_test = C[test_indices, , drop = FALSE]
+D_test = if (is.matrix(D)) D[test_indices, , drop = FALSE] else D[test_indices]
 
 cat("Training set size:", length(Y_train), "\n")
 cat("Testing set size:", length(Y_test), "\n")
