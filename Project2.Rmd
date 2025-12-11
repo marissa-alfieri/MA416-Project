@@ -662,24 +662,7 @@ plot(lambda_grid, rmse_vals, type="l", col="red", lwd=2,
      main="Ridge: RMSE vs Lambda")
 ```
 
-```{r ridge_optimal}
-optimal_idx = which(kappa_vals < 50)[1]  
-lambda_ridge = lambda_grid[optimal_idx]
-
-cat("Optimal Ridge Lambda:", lambda_ridge, "\n")
-cat("Condition Number at Optimal Lambda:", kappa_vals[optimal_idx], "\n")
-cat("RMSE at Optimal Lambda:", rmse_vals[optimal_idx], "\n")
-
-XtX_ridge = t(X) %*% X + lambda_ridge * diag(ncol(X))
-beta_ridge = solve(XtX_ridge) %*% t(X) %*% Y
-
-cat("\nRidge Regression Coefficients:\n")
-print(beta_ridge)
-```
-
 The optimal lambda value provides a statistically solid ridge regression model while maintaining reasonable prediction accuracy. The condition number is substantially reduced compared to ordinary least squares, indicating improved numerical stability.
-
-#### **Test Points and Predictions**
 
 ## Logistic Regression Model for High Life Expectancy
 
@@ -693,72 +676,29 @@ In this section, we shift from predicting continuous life expectancy values to c
 
 The response variable is a binary indicator of whether a country's life expectancy exceeds the median value. The predictors include CO₂ emissions, health expenditure, adult obesity, and continent.
 
-**Model Construction and Data Partitioning**
-
-```{r logistic_setup}
-
-```
-
 **Fitting the Logistic Regression Model**
 
 The logistic regression model relates the log-odds of high life expectancy to the predictors: $$
 \log\left(\frac{p}{1-p}\right) = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \beta_3 X_3 + \beta_C C + \beta_D D
 $$ where $p$ is the probability of having life expectancy above the median.
 
-```{r logistic_model}
-
-```
-
-**Model Assessment on Testing Data**
-
-```{r logistic_test}
-
-```
-
-The model achieves decent accuracy on the test set, indicating that it is neither severely overfitted nor underfitted. The sensitivity and specificity values show how well the model identifies countries with high versus low life expectancy.
-
-**Test Points and Classification**
-
-We evaluate the model at three test points representing distinct scenarios:
-
-```{r logistic_testpoints}
-
-```
-
-**Interpretation and Threshold Discussion**
-
-We chose a threshold of 0.5, which is the standard cutoff for binary classification. This threshold treats false positives and false negatives as equally costly. However, depending on the application, we might adjust this threshold:
-
--   If the goal is to identify countries needing health interventions, we might lower the threshold (e.g., 0.4) to increase sensitivity, ensuring we don't miss countries with low life expectancy.
--   If the goal is to certify countries as having achieved high life expectancy for policy recognition, we might raise the threshold (e.g., 0.6) to increase specificity and reduce false positives.
-
-The test point predictions illustrate how the model can be used in practice. For example:
-
--   **Test Point 1** (Africa, Least Developed, low resources): The model predicts a low probability of high life expectancy, which aligns with expectations for under-resourced regions.
--   **Test Point 2** (Asia, moderate resources): The model prediction depends on the specific probability value, illustrating how Asian countries with moderate development can vary in outcomes.
--   **Test Point 3** (Europe, high resources): The model likely predicts a high probability of high life expectancy, reflecting the strong health infrastructure in developed European nations.
-
-These predictions could inform targeted public health interventions, resource allocation decisions, or monitoring of progress toward global health equity goals.
-
 ## Conclusion
 
-## Conclusion and Discussion of Results
-
-This project took the exploratory work from Project 1 and shifted it toward prediction. Instead of just describing how life expectancy varies across continents or years, we built models to actually predict it—using multiple linear regression, ridge regression, and logistic regression—to see which environmental, health, and structural factors matter most.
+This project took the exploratory work from Project 1 and shifted it toward prediction. Instead of just describing how life expectancy varies across continents or years, we built models to actually predict it, using multiple linear regression, ridge regression, and logistic regression, to see which environmental, health, and structural factors matter most.
 
 **What the regression models showed**
 
 The multiple linear regression model worked reasonably well, though not perfectly. The linearity and normality assumptions held up pretty well, but independence was clearly violated because countries appear multiple times across years, creating a time-based dependency. There was also some mild heteroscedasticity, meaning the error variance wasn't totally constant. Still, the model gave useful results.
 
-Multicollinearity wasn't a major issue—all the VIF values came back low, so the coefficient estimates should be stable. The partial slope analysis showed that adult obesity had the strongest relationship with life expectancy (0.3353), followed by continent (0.2195). CO₂ emissions (0.1188) and health expenditure (0.1215) both had smaller effects, and least developed status had a weak negative relationship (−0.0917).
+Multicollinearity wasn't a major issue, all the VIF values came back low, so the coefficient estimates should be stable. The partial slope analysis showed that adult obesity had the strongest relationship with life expectancy (0.3353), followed by continent (0.2195). CO\$\_2\$ emissions (0.1188) and health expenditure (0.1215) both had smaller effects, and least developed status had a weak negative relationship (−0.0917).
 
-The drop-one analysis backed this up: continent indicators explained the most variation, especially Europe and Asia. Obesity was the strongest continuous predictor (ΔSSM ≈ 4.86%), while CO₂ and health spending barely moved the needle (\< 1% each). The AV plots confirmed the same pattern visually.
+The drop-one analysis backed this up: continent indicators explained the most variation, especially Europe and Asia. Obesity was the strongest continuous predictor (ΔSSM $\approx$ 4.86%), while CO\$\_2\$ and health spending barely moved the needle (\< 1% each). The AV plots confirmed the same pattern visually.
 
 **Ridge regression for stability**
 
-Ridge regression didn't change the predictions much—differences were under 0.03 years for all three test points (Spain, Nigeria, Iran). This confirms what the VIF analysis already suggested: multicollinearity wasn't causing major problems in the OLS model. Ridge's real value here is stability, not better predictions. It would be more useful if you were making predictions far outside the training data or updating the model frequently.
+Ridge regression didn't change the predictions much, differences were under 0.03 years for all three test points (Spain, Nigeria, Iran). This confirms what the VIF analysis already suggested: multicollinearity wasn't causing major problems in the OLS model. Ridge's real value here is stability, not better predictions. It would be more useful if you were making predictions far outside the training data or updating the model frequently.
 
-We chose a condition number threshold of κ \< 50 because it strikes a good balance: it's low enough to ensure numerical stability without over-penalizing the coefficients. Anything above 50 starts to show signs of ill-conditioning, where small data changes cause big swings in estimates.
+We chose a condition number threshold of $\kappa$ \< 50 because it strikes a good balance: it's low enough to ensure numerical stability without over-penalizing the coefficients. Anything above 50 starts to show signs of ill-conditioning, where small data changes cause big swings in estimates.
 
 **Lasso for variable selection**
 
@@ -770,15 +710,13 @@ The logistic model classified countries as having high or low life expectancy (a
 
 We used a 0.5 threshold, which is standard, but you could adjust it depending on the application. If you're trying to identify countries that need interventions, you'd lower the threshold to catch more at-risk countries (higher sensitivity). If you're certifying countries for policy recognition, you'd raise it to reduce false positives (higher specificity).
 
-**Limitations and takeaways** **Logistic Regression for Binary Classification**
-
 **Overall Implications and Limitations**
 
-The biggest limitations are the violated independence assumption (repeated country measurements over time), some heteroscedasticity, and the fact that this is all observational data—so causal claims should be made carefully. There could be unmeasured confounders or reverse causality at play.
+The biggest limitations are the violated independence assumption (repeated country measurements over time), some heteroscedasticity, and the fact that this is all observational data, so causal claims should be made carefully.
 
-Still, the models work well for prediction and give clear insights for policy. Adult obesity and geographic region are the strongest predictors, health spending has a moderate effect, and CO₂ emissions show up weakly once you control for everything else. That weak CO₂ effect might just mean the relationship is more indirect—climate and environmental factors likely influence life expectancy through other pathways that aren't captured here.
+Still, the models work well for prediction and give clear insights for policy. Adult obesity and geographic region are the strongest predictors, health spending has a moderate effect, and CO\$\_2\$ emissions show up weakly once you control for everything else. That weak CO\$\_2\$ effect might just mean the relationship is more indirect, climate and environmental factors likely influence life expectancy through other pathways that aren't captured here.
 
-Future work could use time-series methods to handle the temporal structure properly, test for nonlinear relationships, or add more variables (economic indicators, education, healthcare access). It would also be interesting to see how these relationships changed from 2000 to 2015—whether global health equity improved or certain gaps widened.
+Future work could use time-series methods to handle the temporal structure properly, test for nonlinear relationships, or add more variables (economic indicators, education, healthcare access). It would also be interesting to see how these relationships changed from 2000 to 2015, whether global health equity improved or certain gaps widened.
 
 ## Appendix: Custom Functions
 
