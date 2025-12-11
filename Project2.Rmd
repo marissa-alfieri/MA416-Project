@@ -438,12 +438,7 @@ Overall, all VIF values are well below commonly used cutoffs. This suggests that
 
 ### **Predictor Significance**
 
-To determine whether each predictor is significantly related to life expectancy after controlling for the other predictors, we computed partial standardized slopes. These were found using the correlation between:
-
--   the residuals of $Y$ regressed on all other predictors
--   and the residuals of $X_k$ regressed on all other predictors
-
-This isolates the unique contribution of each predictor to life expectancy after adjusting for the others.
+To determine whether each predictor is significantly related to life expectancy after controlling for the other predictors, we computed partial standardized slopes. These were found using the correlation between the residuals of $Y$ regressed on all other predictors and the residuals of $X_k$ regressed on all other predictors. This isolates the unique contribution of each predictor to life expectancy after adjusting for the others.
 
 For each predictor $X_k$, the standardized slope is: $$
 \hat{\beta}_{k}^{*} = \text{Cor}(e_{X_k}, e_Y)
@@ -455,7 +450,6 @@ slope_expend = partial_slope(X2, Y, cbind(1,X1,X3,C,D))
 slope_obesity = partial_slope(X3, Y, cbind(1,X1,X2,C,D))
 slope_continent = partial_slope(C, Y, cbind(1,X1,X2,X3,D))
 slope_develop = partial_slope(D, Y, cbind(1,X1,X2,X3,C))
-
 ```
 
 ```{r predsigtable, echo=FALSE}
@@ -635,16 +629,13 @@ $$ where $\lambda$ is the ridge penalty parameter that controls the amount of sh
 
 To select the optimal lambda value, we need to balance stability (measured by the condition number $\kappa$) with prediction accuracy (measured by RMSE). We chose a condition number threshold of $\kappa < 50$ as the critical stability criterion. This threshold is statistically justified because:
 
-1. **Numerical stability**: Condition numbers above 50 indicate that the matrix is becoming ill-conditioned, meaning small changes in the data can lead to large changes in the coefficient estimates
-2. **Practical balance**: A threshold of 50 provides substantial improvement over OLS (which often has $\kappa > 100$ in the presence of multicollinearity) while avoiding over-regularization that would severely bias the estimates
-3. **Common practice**: This threshold aligns with standard practice in regression diagnostics, where condition numbers below 30-50 are considered acceptable for stable estimation
+1.  **Numerical stability**: Condition numbers above 50 indicate that the matrix is becoming ill-conditioned, meaning small changes in the data can lead to large changes in the coefficient estimates
+2.  **Practical balance**: A threshold of 50 provides substantial improvement over OLS (which often has $\kappa > 100$ in the presence of multicollinearity) while avoiding over-regularization that would severely bias the estimates
+3.  **Common practice**: This threshold aligns with standard practice in regression diagnostics, where condition numbers below 30-50 are considered acceptable for stable estimation
 
 We examine how the condition number and RMSE change across a range of lambda values to find the optimal penalty parameter.
 
 ```{r ridge_tuning, fig.width=8, fig.height=4}
-library(MASS)
-
-# Grid of lambda values
 lambda_grid = seq(0, 50, by=0.5)
 kappa_vals = numeric(length(lambda_grid))
 rmse_vals = numeric(length(lambda_grid))
@@ -652,18 +643,14 @@ rmse_vals = numeric(length(lambda_grid))
 for(i in 1:length(lambda_grid)){
   lam = lambda_grid[i]
 
-  # Ridge regression
   XtX_ridge = t(X) %*% X + lam * diag(ncol(X))
   beta_ridge = solve(XtX_ridge) %*% t(X) %*% Y
 
-  # Condition number
   S_ridge = svd(XtX_ridge)
   kappa_vals[i] = sqrt(max(S_ridge$d) / min(S_ridge$d))
 
-  # RMSE
   yhat_ridge = X %*% beta_ridge
-  rmse_vals[i] = sqrt(mean((Y - yhat_ridge)^2))
-}
+  rmse_vals[i] = sqrt(mean((Y - yhat_ridge)^2))}
 
 par(mfrow=c(1,2))
 plot(lambda_grid, kappa_vals, type="l", col="blue", lwd=2,
@@ -676,16 +663,13 @@ plot(lambda_grid, rmse_vals, type="l", col="red", lwd=2,
 ```
 
 ```{r ridge_optimal}
-# Choose lambda that gives good balance
-# Look for "elbow" in condition number curve
-optimal_idx = which(kappa_vals < 50)[1]  # First lambda giving kappa < 50
+optimal_idx = which(kappa_vals < 50)[1]  
 lambda_ridge = lambda_grid[optimal_idx]
 
 cat("Optimal Ridge Lambda:", lambda_ridge, "\n")
 cat("Condition Number at Optimal Lambda:", kappa_vals[optimal_idx], "\n")
 cat("RMSE at Optimal Lambda:", rmse_vals[optimal_idx], "\n")
 
-# Fit final ridge model
 XtX_ridge = t(X) %*% X + lambda_ridge * diag(ncol(X))
 beta_ridge = solve(XtX_ridge) %*% t(X) %*% Y
 
@@ -757,6 +741,7 @@ The test point predictions illustrate how the model can be used in practice. For
 These predictions could inform targeted public health interventions, resource allocation decisions, or monitoring of progress toward global health equity goals.
 
 ## Conclusion
+
 ## Conclusion and Discussion of Results
 
 This project took the exploratory work from Project 1 and shifted it toward prediction. Instead of just describing how life expectancy varies across continents or years, we built models to actually predict it—using multiple linear regression, ridge regression, and logistic regression—to see which environmental, health, and structural factors matter most.
@@ -767,13 +752,13 @@ The multiple linear regression model worked reasonably well, though not perfectl
 
 Multicollinearity wasn't a major issue—all the VIF values came back low, so the coefficient estimates should be stable. The partial slope analysis showed that adult obesity had the strongest relationship with life expectancy (0.3353), followed by continent (0.2195). CO₂ emissions (0.1188) and health expenditure (0.1215) both had smaller effects, and least developed status had a weak negative relationship (−0.0917).
 
-The drop-one analysis backed this up: continent indicators explained the most variation, especially Europe and Asia. Obesity was the strongest continuous predictor (ΔSSM ≈ 4.86%), while CO₂ and health spending barely moved the needle (< 1% each). The AV plots confirmed the same pattern visually.
+The drop-one analysis backed this up: continent indicators explained the most variation, especially Europe and Asia. Obesity was the strongest continuous predictor (ΔSSM ≈ 4.86%), while CO₂ and health spending barely moved the needle (\< 1% each). The AV plots confirmed the same pattern visually.
 
 **Ridge regression for stability**
 
 Ridge regression didn't change the predictions much—differences were under 0.03 years for all three test points (Spain, Nigeria, Iran). This confirms what the VIF analysis already suggested: multicollinearity wasn't causing major problems in the OLS model. Ridge's real value here is stability, not better predictions. It would be more useful if you were making predictions far outside the training data or updating the model frequently.
 
-We chose a condition number threshold of κ < 50 because it strikes a good balance: it's low enough to ensure numerical stability without over-penalizing the coefficients. Anything above 50 starts to show signs of ill-conditioning, where small data changes cause big swings in estimates.
+We chose a condition number threshold of κ \< 50 because it strikes a good balance: it's low enough to ensure numerical stability without over-penalizing the coefficients. Anything above 50 starts to show signs of ill-conditioning, where small data changes cause big swings in estimates.
 
 **Lasso for variable selection**
 
@@ -785,8 +770,7 @@ The logistic model classified countries as having high or low life expectancy (a
 
 We used a 0.5 threshold, which is standard, but you could adjust it depending on the application. If you're trying to identify countries that need interventions, you'd lower the threshold to catch more at-risk countries (higher sensitivity). If you're certifying countries for policy recognition, you'd raise it to reduce false positives (higher specificity).
 
-**Limitations and takeaways**
-**Logistic Regression for Binary Classification**
+**Limitations and takeaways** **Logistic Regression for Binary Classification**
 
 **Overall Implications and Limitations**
 
