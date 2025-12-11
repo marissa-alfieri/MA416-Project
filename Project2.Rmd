@@ -642,8 +642,6 @@ To select the optimal lambda value, we need to balance stability (measured by th
 We examine how the condition number and RMSE change across a range of lambda values to find the optimal penalty parameter.
 
 ```{r ridge_tuning, fig.width=8, fig.height=4}
-library(MASS)
-
 # Grid of lambda values
 lambda_grid = seq(0, 50, by=0.5)
 kappa_vals = numeric(length(lambda_grid))
