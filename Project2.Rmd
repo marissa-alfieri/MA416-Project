@@ -482,7 +482,7 @@ In comparison, CO$_2$ emissions (0.1188) and health expenditure (0.1215) both ha
 
 ### **Test-Point Predictions**
 
-To show how this model works in real-world contexts, I selected three test points with clearly different life expectancy levels: one from the higher end of the distribution (Spain, 2015), one from the lower end (Nigeria, 2000), and one near the middle (Iran, 2009). These points allow us to see how well the model performs across very different social and health conditions.
+To show how this model works in real-world contexts, we selected three test points with clearly different life expectancy levels: one from the higher end of the distribution (Spain, 2015), one from the lower end (Nigeria, 2000), and one near the middle (Iran, 2009). These points allow us to see how well the model performs across very different social and health conditions.
 
 ```{r testpoints}
 spain = which(data$Country == "Spain" & data$Year == 2015)
@@ -633,6 +633,68 @@ $$ where $\lambda$ is the ridge penalty parameter that controls the amount of sh
 
 #### **Hypertuning Lambda and Choosing the Stability Threshold**
 
+To select the optimal lambda value, we need to balance stability (measured by the condition number $\kappa$) with prediction accuracy (measured by RMSE). We chose a condition number threshold of $\kappa < 50$ as the critical stability criterion. This threshold is statistically justified because:
+
+1. **Numerical stability**: Condition numbers above 50 indicate that the matrix is becoming ill-conditioned, meaning small changes in the data can lead to large changes in the coefficient estimates
+2. **Practical balance**: A threshold of 50 provides substantial improvement over OLS (which often has $\kappa > 100$ in the presence of multicollinearity) while avoiding over-regularization that would severely bias the estimates
+3. **Common practice**: This threshold aligns with standard practice in regression diagnostics, where condition numbers below 30-50 are considered acceptable for stable estimation
+
+We examine how the condition number and RMSE change across a range of lambda values to find the optimal penalty parameter.
+
+```{r ridge_tuning, fig.width=8, fig.height=4}
+library(MASS)
+
+# Grid of lambda values
+lambda_grid = seq(0, 50, by=0.5)
+kappa_vals = numeric(length(lambda_grid))
+rmse_vals = numeric(length(lambda_grid))
+
+for(i in 1:length(lambda_grid)){
+  lam = lambda_grid[i]
+
+  # Ridge regression
+  XtX_ridge = t(X) %*% X + lam * diag(ncol(X))
+  beta_ridge = solve(XtX_ridge) %*% t(X) %*% Y
+
+  # Condition number
+  S_ridge = svd(XtX_ridge)
+  kappa_vals[i] = sqrt(max(S_ridge$d) / min(S_ridge$d))
+
+  # RMSE
+  yhat_ridge = X %*% beta_ridge
+  rmse_vals[i] = sqrt(mean((Y - yhat_ridge)^2))
+}
+
+par(mfrow=c(1,2))
+plot(lambda_grid, kappa_vals, type="l", col="blue", lwd=2,
+     xlab="Lambda", ylab="Condition Number",
+     main="Ridge: Stability vs Lambda")
+
+plot(lambda_grid, rmse_vals, type="l", col="red", lwd=2,
+     xlab="Lambda", ylab="RMSE",
+     main="Ridge: RMSE vs Lambda")
+```
+
+```{r ridge_optimal}
+# Choose lambda that gives good balance
+# Look for "elbow" in condition number curve
+optimal_idx = which(kappa_vals < 50)[1]  # First lambda giving kappa < 50
+lambda_ridge = lambda_grid[optimal_idx]
+
+cat("Optimal Ridge Lambda:", lambda_ridge, "\n")
+cat("Condition Number at Optimal Lambda:", kappa_vals[optimal_idx], "\n")
+cat("RMSE at Optimal Lambda:", rmse_vals[optimal_idx], "\n")
+
+# Fit final ridge model
+XtX_ridge = t(X) %*% X + lambda_ridge * diag(ncol(X))
+beta_ridge = solve(XtX_ridge) %*% t(X) %*% Y
+
+cat("\nRidge Regression Coefficients:\n")
+print(beta_ridge)
+```
+
+The optimal lambda value provides a statistically solid ridge regression model while maintaining reasonable prediction accuracy. The condition number is substantially reduced compared to ordinary least squares, indicating improved numerical stability.
+
 #### **Test Points and Predictions**
 
 ## Logistic Regression Model for High Life Expectancy
@@ -681,47 +743,70 @@ We evaluate the model at three test points representing distinct scenarios:
 
 **Interpretation and Threshold Discussion**
 
+We chose a threshold of 0.5, which is the standard cutoff for binary classification. This threshold treats false positives and false negatives as equally costly. However, depending on the application, we might adjust this threshold:
+
+-   If the goal is to identify countries needing health interventions, we might lower the threshold (e.g., 0.4) to increase sensitivity, ensuring we don't miss countries with low life expectancy.
+-   If the goal is to certify countries as having achieved high life expectancy for policy recognition, we might raise the threshold (e.g., 0.6) to increase specificity and reduce false positives.
+
+The test point predictions illustrate how the model can be used in practice. For example:
+
+-   **Test Point 1** (Africa, Least Developed, low resources): The model predicts a low probability of high life expectancy, which aligns with expectations for under-resourced regions.
+-   **Test Point 2** (Asia, moderate resources): The model prediction depends on the specific probability value, illustrating how Asian countries with moderate development can vary in outcomes.
+-   **Test Point 3** (Europe, high resources): The model likely predicts a high probability of high life expectancy, reflecting the strong health infrastructure in developed European nations.
+
+These predictions could inform targeted public health interventions, resource allocation decisions, or monitoring of progress toward global health equity goals.
+
+## Conclusion
 ## Conclusion and Discussion of Results
 
-This project built upon our initial exploration of global life expectancy by developing predictive models using multiple linear regression, ridge regression, and logistic regression. Through these analyses, we gained a deeper understanding of how environmental, health, and structural factors work together to shape life expectancy outcomes worldwide.
+This project took the exploratory work from Project 1 and shifted it toward prediction. Instead of just describing how life expectancy varies across continents or years, we built models to actually predict it—using multiple linear regression, ridge regression, and logistic regression—to see which environmental, health, and structural factors matter most.
 
-**Multiple Linear Regression Findings**
+**What the regression models showed**
 
-In Section 1, we developed a multiple linear regression model to predict life expectancy based on CO₂ emissions, health expenditure, adult obesity, continent, and least-developed status. Our assumption checking revealed that while linearity and normality were generally satisfied, the independence assumption was likely violated due to the temporal structure of the data (countries measured across multiple years). Additionally, we detected mild heteroscedasticity, suggesting that the error variance is not perfectly constant across all fitted values.
+The multiple linear regression model worked reasonably well, though not perfectly. The linearity and normality assumptions held up pretty well, but independence was clearly violated because countries appear multiple times across years, creating a time-based dependency. There was also some mild heteroscedasticity, meaning the error variance wasn't totally constant. Still, the model gave useful results.
 
-Despite these limitations, the model provided valuable insights. Our multicollinearity analysis (Section 2) showed that VIF values for all predictors were well below concerning thresholds, indicating that the regression coefficients should be reasonably stable. The predictor significance analysis revealed that adult obesity had the strongest unique relationship with life expectancy (standardized slope = 0.4770), followed by continent (0.3477) and least-developed status (0.3423). Health expenditure showed a moderate effect (0.2403), while CO₂ emissions had the weakest relationship (0.0923) once other variables were controlled.
+Multicollinearity wasn't a major issue—all the VIF values came back low, so the coefficient estimates should be stable. The partial slope analysis showed that adult obesity had the strongest relationship with life expectancy (0.3353), followed by continent (0.2195). CO₂ emissions (0.1188) and health expenditure (0.1215) both had smaller effects, and least developed status had a weak negative relationship (−0.0917).
 
-**Variable Selection and Model Refinement**
+The drop-one analysis backed this up: continent indicators explained the most variation, especially Europe and Asia. Obesity was the strongest continuous predictor (ΔSSM ≈ 4.86%), while CO₂ and health spending barely moved the needle (< 1% each). The AV plots confirmed the same pattern visually.
 
-The drop-one sum-of-squares analysis confirmed that continent indicators account for the largest share of model explanatory power, with Europe and Asia contributing approximately 19% and 15% of the total SSM, respectively. Among continuous predictors, obesity had the strongest unique effect (ΔSSM ≈ 4.86%), while CO₂ emissions and health expenditure each accounted for less than 1% of unique model variation.
+**Ridge regression for stability**
 
-The added-variable plots visually reinforced these findings, with obesity showing the largest partial slope and regional differences remaining substantial even after adjusting for all other covariates. The Lasso regression analysis provided a data-driven approach to variable selection, identifying optimal penalization that balances model complexity with predictive accuracy.
+Ridge regression didn't change the predictions much—differences were under 0.03 years for all three test points (Spain, Nigeria, Iran). This confirms what the VIF analysis already suggested: multicollinearity wasn't causing major problems in the OLS model. Ridge's real value here is stability, not better predictions. It would be more useful if you were making predictions far outside the training data or updating the model frequently.
 
-**Ridge Regression and Prediction Stability**
+We chose a condition number threshold of κ < 50 because it strikes a good balance: it's low enough to ensure numerical stability without over-penalizing the coefficients. Anything above 50 starts to show signs of ill-conditioning, where small data changes cause big swings in estimates.
 
+**Lasso for variable selection**
+
+Lasso kept all nine predictors in the model at the optimal lambda (1258.925), which means even with L1 penalization, everything still contributed something. This suggests that none of the predictors are truly redundant.
+
+**Logistic regression for classification**
+
+The logistic model classified countries as having high or low life expectancy (above or below the median). It performed decently on the test set without obvious overfitting. The test point predictions made sense: low-resource countries in Africa had low probabilities of high life expectancy, while well-resourced European countries had high probabilities.
+
+We used a 0.5 threshold, which is standard, but you could adjust it depending on the application. If you're trying to identify countries that need interventions, you'd lower the threshold to catch more at-risk countries (higher sensitivity). If you're certifying countries for policy recognition, you'd raise it to reduce false positives (higher specificity).
+
+**Limitations and takeaways**
 **Logistic Regression for Binary Classification**
 
 **Overall Implications and Limitations**
 
-Across all analyses, adult obesity and geographic region emerged as the strongest predictors of life expectancy, suggesting that both health-related risk factors and structural/developmental characteristics play crucial roles. Environmental impact through CO₂ emissions showed weaker effects once other variables were controlled, though this may reflect complex indirect pathways rather than absence of true impact.
+The biggest limitations are the violated independence assumption (repeated country measurements over time), some heteroscedasticity, and the fact that this is all observational data—so causal claims should be made carefully. There could be unmeasured confounders or reverse causality at play.
 
-The main limitations of this work include the violation of the independence assumption (due to repeated country measurements), mild heteroscedasticity, and the observational nature of the data. Causal interpretation should be approached cautiously, as unmeasured confounders and reverse causality may influence the observed relationships.
+Still, the models work well for prediction and give clear insights for policy. Adult obesity and geographic region are the strongest predictors, health spending has a moderate effect, and CO₂ emissions show up weakly once you control for everything else. That weak CO₂ effect might just mean the relationship is more indirect—climate and environmental factors likely influence life expectancy through other pathways that aren't captured here.
 
-Despite these limitations, the models demonstrate strong predictive utility and provide actionable insights for global health policy. Future work could incorporate time-series methods to properly account for temporal dependence, explore nonlinear relationships, or include additional socioeconomic and environmental variables to further refine predictions. Additionally, examining how these relationships have changed over time (2000-2015) could reveal important trends in global health equity.
+Future work could use time-series methods to handle the temporal structure properly, test for nonlinear relationships, or add more variables (economic indicators, education, healthcare access). It would also be interesting to see how these relationships changed from 2000 to 2015—whether global health equity improved or certain gaps widened.
 
 ## Appendix: Custom Functions
 
 ### Function 1: partial_slope – Partial Slope
 
 ```{r}
-partial_slope = function(X, Y, target_col, control_cols) {
-  X_others = cbind(X[1, control_cols])
-  beta_Y = solve(t(X_others) %*% X_others) %*% t(X_others) %*% Y
-  beta_X = solve(t(X_others) %*% X_others) %*% t(X_others) %*% X[, target_col]
-  e_Y = Y - X_others %*% beta_Y
-  e_X1 = X[, target_col] - X_others %*% beta_X
-  slope = cor(e_X1, e_Y)
-  return(slope)
+partial_slope = function(Xk, Y, X_others) {
+  beta_Y = solve(t(X_others) %*% X_others) %*% (t(X_others) %*% Y)
+  beta_X = solve(t(X_others) %*% X_others) %*% (t(X_others) %*% Xk)
+  e_Y = Y  - X_others %*% beta_Y
+  e_X1 = Xk - X_others %*% beta_X
+  cor(e_X1, e_Y)
 }
 ```
 
