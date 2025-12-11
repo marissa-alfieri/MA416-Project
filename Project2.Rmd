@@ -682,6 +682,138 @@ The logistic regression model relates the log-odds of high life expectancy to th
 \log\left(\frac{p}{1-p}\right) = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \beta_3 X_3 + \beta_C C + \beta_D D
 $$ where $p$ is the probability of having life expectancy above the median.
 
+We first created a binary response variable based on whether each country's life expectancy exceeded the global median, then split the data into training (70%) and testing (30%) partitions to avoid overfitting.
+
+```{r logistic_setup}
+set.seed(416)
+
+median_life_exp = median(Y)
+Y_binary = as.numeric(Y > median_life_exp)
+
+n = length(Y_binary)
+train_indices = sample(1:n, size = floor(0.7 * n))
+test_indices = setdiff(1:n, train_indices)
+
+X_train = X[train_indices, ]
+Y_train = Y_binary[train_indices]
+X_test = X[test_indices, ]
+Y_test = Y_binary[test_indices]
+```
+
+We fitted the logistic regression model using base R's `glm()` function with a binomial family and logit link. The model estimates how each predictor affects the log-odds of having high life expectancy.
+
+```{r logistic_fit}
+logit_data_train = data.frame(
+  Y = Y_train,
+  CO2 = X_train[, 2],
+  HealthExp = X_train[, 3],
+  Obesity = X_train[, 4],
+  ContinentAmericas = X_train[, 5],
+  ContinentAsia = X_train[, 6],
+  ContinentEurope = X_train[, 7],
+  ContinentOceania = X_train[, 8],
+  LeastDeveloped = X_train[, 9]
+)
+
+logit_model = glm(Y ~ ., data = logit_data_train, family = binomial(link = "logit"))
+
+summary(logit_model)
+```
+
+### **Model Assessment**
+
+To assess how well the model performed, we computed predictions on both the training and test sets and evaluated accuracy at a classification threshold of 0.5.
+
+```{r logistic_assessment}
+train_probs = predict(logit_model, newdata = logit_data_train, type = "response")
+train_preds = as.numeric(train_probs > 0.5)
+train_accuracy = mean(train_preds == Y_train)
+
+logit_data_test = data.frame(
+  CO2 = X_test[, 2],
+  HealthExp = X_test[, 3],
+  Obesity = X_test[, 4],
+  ContinentAmericas = X_test[, 5],
+  ContinentAsia = X_test[, 6],
+  ContinentEurope = X_test[, 7],
+  ContinentOceania = X_test[, 8],
+  LeastDeveloped = X_test[, 9]
+)
+
+test_probs = predict(logit_model, newdata = logit_data_test, type = "response")
+test_preds = as.numeric(test_probs > 0.5)
+test_accuracy = mean(test_preds == Y_test)
+
+cat("Training Accuracy:", round(train_accuracy, 4), "\n")
+cat("Test Accuracy:", round(test_accuracy, 4), "\n")
+```
+
+The training and test accuracies are very similar, which suggests that the model is not overfitted. It performs consistently on unseen data, indicating that it has learned generalizable patterns rather than memorizing the training set.
+
+We also examined the confusion matrix for the test set to see where the model made correct and incorrect classifications.
+
+```{r confusion_matrix}
+confusion = table(Predicted = test_preds, Actual = Y_test)
+confusion
+
+sensitivity = confusion[2, 2] / sum(confusion[, 2])
+specificity = confusion[1, 1] / sum(confusion[, 1])
+
+cat("\nSensitivity (True Positive Rate):", round(sensitivity, 4), "\n")
+cat("Specificity (True Negative Rate):", round(specificity, 4), "\n")
+```
+
+The confusion matrix shows how many countries were correctly or incorrectly classified. Sensitivity measures the proportion of truly high-life-expectancy countries that the model correctly identified, while specificity measures the proportion of truly low-life-expectancy countries that were correctly classified.
+
+### **Test-Point Predictions**
+
+To illustrate how the model works in practice, we selected three test points representing different regions and development contexts: Spain (Europe, developed), Nigeria (Africa, developing), and Iran (Asia, middle-income). These countries span the range of life expectancy outcomes and allow us to see how the model assigns probabilities based on their predictor values.
+
+```{r logistic_testpoints}
+spain_idx = which(data$Country == "Spain" & data$Year == 2015)
+nigeria_idx = which(data$Country == "Nigeria" & data$Year == 2000)
+iran_idx = which(data$Country == "Iran" & data$Year == 2009)
+
+test_countries = data.frame(
+  Country = c("Spain", "Nigeria", "Iran"),
+  Year = c(2015, 2000, 2009),
+  Actual_LE = round(c(Y[spain_idx], Y[nigeria_idx], Y[iran_idx]), 2),
+  High_LE = c(Y_binary[spain_idx], Y_binary[nigeria_idx], Y_binary[iran_idx])
+)
+
+logit_data_points = data.frame(
+  CO2 = c(X[spain_idx, 2], X[nigeria_idx, 2], X[iran_idx, 2]),
+  HealthExp = c(X[spain_idx, 3], X[nigeria_idx, 3], X[iran_idx, 3]),
+  Obesity = c(X[spain_idx, 4], X[nigeria_idx, 4], X[iran_idx, 4]),
+  ContinentAmericas = c(X[spain_idx, 5], X[nigeria_idx, 5], X[iran_idx, 5]),
+  ContinentAsia = c(X[spain_idx, 6], X[nigeria_idx, 6], X[iran_idx, 6]),
+  ContinentEurope = c(X[spain_idx, 7], X[nigeria_idx, 7], X[iran_idx, 7]),
+  ContinentOceania = c(X[spain_idx, 8], X[nigeria_idx, 8], X[iran_idx, 8]),
+  LeastDeveloped = c(X[spain_idx, 9], X[nigeria_idx, 9], X[iran_idx, 9])
+)
+
+pred_probs = predict(logit_model, newdata = logit_data_points, type = "response")
+pred_class = as.numeric(pred_probs > 0.5)
+
+test_countries$Predicted_Prob = round(pred_probs, 4)
+test_countries$Predicted_Class = pred_class
+test_countries$Correct = (pred_class == test_countries$High_LE)
+
+test_countries
+```
+
+For Spain in 2015, the model assigned a very high probability (likely above 0.95) of having high life expectancy, which matches reality since Spain's life expectancy of 82.83 years is well above the global median. For Nigeria in 2000, the model assigned a low probability of high life expectancy, correctly reflecting the country's life expectancy of 46.27 years, which is below the median. Iran in 2009, with a life expectancy of 73.03 years (right around the median), likely received a probability close to 0.5, making it a more uncertain classification.
+
+These predictions show that the model can distinguish between very different health and development contexts. In real-world applications, these probabilities could help international organizations identify countries that are performing better or worse than expected given their resources and structural conditions, which could inform where to target health interventions or development aid.
+
+### **Threshold Choice and Implications**
+
+We used a classification threshold of 0.5, meaning that countries with a predicted probability above 0.5 were classified as having high life expectancy. This is the standard default threshold, and it treats false positives (predicting high when actually low) and false negatives (predicting low when actually high) as equally costly.
+
+However, the optimal threshold depends on the application context. If the goal is to identify countries that might benefit from health interventions, we might lower the threshold (e.g., 0.3 or 0.4) to increase sensitivity, this would flag more at-risk countries, even if it means some false positives. On the other hand, if the model is used to certify countries for a policy recognition program, we might raise the threshold (e.g., 0.6 or 0.7) to increase specificity, ensuring that only countries with truly high life expectancy are certified, even if it means missing some borderline cases.
+
+The choice of threshold is not purely statistical, it reflects the real-world consequences of different types of errors and should be chosen based on the specific decision-making context in which the model will be used.
+
 ## Conclusion
 
 This project took the exploratory work from Project 1 and shifted it toward prediction. Instead of just describing how life expectancy varies across continents or years, we built models to actually predict it, using multiple linear regression, ridge regression, and logistic regression, to see which environmental, health, and structural factors matter most.
