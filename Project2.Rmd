@@ -922,41 +922,41 @@ The test point predictions illustrate how the model can be used in practice. For
 
 These predictions could inform targeted public health interventions, resource allocation decisions, or monitoring of progress toward global health equity goals.
 
-## Conclusion and Discussion of Results
+## Conclusion
 
-This project built upon our initial exploration of global life expectancy by developing predictive models using multiple linear regression, ridge regression, and logistic regression. Through these analyses, we gained a deeper understanding of how environmental, health, and structural factors work together to shape life expectancy outcomes worldwide.
+This project took the exploratory work from Project 1 and shifted it toward prediction. Instead of just describing how life expectancy varies across continents or years, I built models to actually predict it—using multiple linear regression, ridge regression, and logistic regression—to see which environmental, health, and structural factors matter most.
 
-**Multiple Linear Regression Findings**
+**What the regression models showed**
 
-In Section 1, we developed a multiple linear regression model to predict life expectancy based on CO₂ emissions, health expenditure, adult obesity, continent, and least-developed status. Our assumption checking revealed that while linearity and normality were generally satisfied, the independence assumption was likely violated due to the temporal structure of the data (countries measured across multiple years). Additionally, we detected mild heteroscedasticity, suggesting that the error variance is not perfectly constant across all fitted values.
+The multiple linear regression model worked reasonably well, though not perfectly. The linearity and normality assumptions held up pretty well, but independence was clearly violated because countries appear multiple times across years, creating a time-based dependency. There was also some mild heteroscedasticity, meaning the error variance wasn't totally constant. Still, the model gave useful results.
 
-Despite these limitations, the model provided valuable insights. Our multicollinearity analysis (Section 2) showed that VIF values for all predictors were well below concerning thresholds, indicating that the regression coefficients should be reasonably stable. The predictor significance analysis revealed that adult obesity had the strongest unique relationship with life expectancy (standardized slope = 0.4770), followed by continent (0.3477) and least-developed status (0.3423). Health expenditure showed a moderate effect (0.2403), while CO₂ emissions had the weakest relationship (0.0923) once other variables were controlled.
+Multicollinearity wasn't a major issue—all the VIF values came back low, so the coefficient estimates should be stable. The partial slope analysis showed that adult obesity had the strongest relationship with life expectancy (0.3353), followed by continent (0.2195). CO₂ emissions (0.1188) and health expenditure (0.1215) both had smaller effects, and least developed status had a weak negative relationship (−0.0917).
 
-**Variable Selection and Model Refinement**
+The drop-one analysis backed this up: continent indicators explained the most variation, especially Europe and Asia. Obesity was the strongest continuous predictor (ΔSSM ≈ 4.86%), while CO₂ and health spending barely moved the needle (< 1% each). The AV plots confirmed the same pattern visually.
 
-The drop-one sum-of-squares analysis confirmed that continent indicators account for the largest share of model explanatory power, with Europe and Asia contributing approximately 19% and 15% of the total SSM, respectively. Among continuous predictors, obesity had the strongest unique effect (ΔSSM ≈ 4.86%), while CO₂ emissions and health expenditure each accounted for less than 1% of unique model variation.
+**Ridge regression for stability**
 
-The added-variable plots visually reinforced these findings, with obesity showing the largest partial slope and regional differences remaining substantial even after adjusting for all other covariates. The Lasso regression analysis provided a data-driven approach to variable selection, identifying optimal penalization that balances model complexity with predictive accuracy.
+Ridge regression didn't change the predictions much—differences were under 0.03 years for all three test points (Spain, Nigeria, Iran). This confirms what the VIF analysis already suggested: multicollinearity wasn't causing major problems in the OLS model. Ridge's real value here is stability, not better predictions. It would be more useful if you were making predictions far outside the training data or updating the model frequently.
 
-**Ridge Regression and Prediction Stability**
+I chose a condition number threshold of κ < 50 because it strikes a good balance: it's low enough to ensure numerical stability without over-penalizing the coefficients. Anything above 50 starts to show signs of ill-conditioning, where small data changes cause big swings in estimates.
 
-Section 2 extended our analysis by implementing ridge regression, which improves numerical stability by shrinking regression coefficients. Through hypertuning, we identified an optimal lambda value that substantially reduced the condition number while maintaining reasonable prediction accuracy. When comparing predictions from OLS and ridge regression at three diverse test points, we found differences typically less than 1-2 years of life expectancy. This suggests that while ridge regression provides improved stability, the original OLS estimates were not severely compromised by multicollinearity—consistent with our VIF analysis.
+**Lasso for variable selection**
 
-The subtle differences between methods confirm that both approaches agree on the fundamental relationships in the data, but ridge regression offers a more robust framework for applications requiring high numerical precision or predictions outside the observed data range.
+Lasso kept all nine predictors in the model at the optimal lambda (1258.925), which means even with L1 penalization, everything still contributed something. This suggests that none of the predictors are truly redundant.
 
-**Logistic Regression for Binary Classification**
+**Logistic regression for classification**
 
-Section 3 shifted focus from continuous prediction to binary classification, modeling whether countries achieve above-median life expectancy. By partitioning the data into training (70%) and testing (30%) sets, we developed a logistic regression model that achieved decent accuracy without severe overfitting or underfitting.
+The logistic model classified countries as having high or low life expectancy (above or below the median). It performed decently on the test set without obvious overfitting. The test point predictions made sense: low-resource countries in Africa had low probabilities of high life expectancy, while well-resourced European countries had high probabilities.
 
-The test point evaluations illustrated practical applications: countries with limited resources and least-developed status showed low probabilities of high life expectancy, while well-resourced European nations showed high probabilities. We discussed how threshold selection (0.5 as standard, but adjustable based on application goals) affects the balance between sensitivity and specificity. These predictions could guide public health interventions, resource allocation, and monitoring of global health equity progress.
+I used a 0.5 threshold, which is standard, but you could adjust it depending on the application. If you're trying to identify countries that need interventions, you'd lower the threshold to catch more at-risk countries (higher sensitivity). If you're certifying countries for policy recognition, you'd raise it to reduce false positives (higher specificity).
 
-**Overall Implications and Limitations**
+**Limitations and takeaways**
 
-Across all analyses, adult obesity and geographic region emerged as the strongest predictors of life expectancy, suggesting that both health-related risk factors and structural/developmental characteristics play crucial roles. Environmental impact through CO₂ emissions showed weaker effects once other variables were controlled, though this may reflect complex indirect pathways rather than absence of true impact.
+The biggest limitations are the violated independence assumption (repeated country measurements over time), some heteroscedasticity, and the fact that this is all observational data—so causal claims should be made carefully. There could be unmeasured confounders or reverse causality at play.
 
-The main limitations of this work include the violation of the independence assumption (due to repeated country measurements), mild heteroscedasticity, and the observational nature of the data. Causal interpretation should be approached cautiously, as unmeasured confounders and reverse causality may influence the observed relationships.
+Still, the models work well for prediction and give clear insights for policy. Adult obesity and geographic region are the strongest predictors, health spending has a moderate effect, and CO₂ emissions show up weakly once you control for everything else. That weak CO₂ effect might just mean the relationship is more indirect—climate and environmental factors likely influence life expectancy through other pathways that aren't captured here.
 
-Despite these limitations, the models demonstrate strong predictive utility and provide actionable insights for global health policy. Future work could incorporate time-series methods to properly account for temporal dependence, explore nonlinear relationships, or include additional socioeconomic and environmental variables to further refine predictions. Additionally, examining how these relationships have changed over time (2000-2015) could reveal important trends in global health equity.
+Future work could use time-series methods to handle the temporal structure properly, test for nonlinear relationships, or add more variables (economic indicators, education, healthcare access). It would also be interesting to see how these relationships changed from 2000 to 2015—whether global health equity improved or certain gaps widened.
 
 ## Appendix: Custom Functions
 
@@ -965,14 +965,12 @@ This appendix contains all custom functions used throughout the analysis, ensuri
 ### Function 1: partial_slope – Partial Slope
 
 ```{r}
-partial_slope = function(X, Y, target_col, control_cols) {
-  X_others = cbind(X[1, control_cols])
-  beta_Y = solve(t(X_others) %*% X_others) %*% t(X_others) %*% Y
-  beta_X = solve(t(X_others) %*% X_others) %*% t(X_others) %*% X[, target_col]
-  e_Y = Y - X_others %*% beta_Y
-  e_X1 = X[, target_col] - X_others %*% beta_X
-  slope = cor(e_X1, e_Y)
-  return(slope)
+partial_slope = function(Xk, Y, X_others) {
+  beta_Y = solve(t(X_others) %*% X_others) %*% (t(X_others) %*% Y)
+  beta_X = solve(t(X_others) %*% X_others) %*% (t(X_others) %*% Xk)
+  e_Y = Y  - X_others %*% beta_Y
+  e_X1 = Xk - X_others %*% beta_X
+  cor(e_X1, e_Y)
 }
 ```
 
