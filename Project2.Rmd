@@ -625,7 +625,7 @@ The optimal penalty parameter was $\lambda$ = 1258.925, where all nine predictor
 
 ### **Ridge Regression**
 
-Ridge regression adds a penalty term to the least squares estimation that shrinks the regression coefficients toward zero, reducing their variance at the cost of introducing some bias. This approach is particularly useful when multicollinearity is present or when we want to improve prediction stability.
+Ridge regression adds a penalty term to the least squares estimation that shrinks the regression coefficients toward zero, reducing their variance but introducing some bias. This approach is useful when multicollinearity is present or when we want to improve prediction stability.
 
 The ridge regression estimator is given by: $$
 \hat{\beta}_{\text{ridge}} = (X^TX + \lambda I)^{-1}X^TY
@@ -633,59 +633,7 @@ $$ where $\lambda$ is the ridge penalty parameter that controls the amount of sh
 
 #### **Hypertuning Lambda and Choosing the Stability Threshold**
 
-To select the optimal lambda value, we need to balance stability (measured by the condition number $\kappa$) with prediction accuracy (measured by RMSE). I chose a condition number threshold of $\kappa < 50$ as the critical stability criterion. This threshold is statistically justified because:
-
-1.  **Numerical stability**: Condition numbers above 50 indicate that the matrix is becoming ill-conditioned, meaning small changes in the data can lead to large changes in the coefficient estimates
-2.  **Practical balance**: A threshold of 50 provides substantial improvement over OLS (which often has $\kappa > 100$ in the presence of multicollinearity) while avoiding over-regularization that would severely bias the estimates
-3.  **Common practice**: This threshold aligns with standard practice in regression diagnostics, where condition numbers below 30-50 are considered acceptable for stable estimation
-
-We examine how the condition number and RMSE change across a range of lambda values to find the optimal penalty parameter.
-
-```         
-```
-
-The optimal lambda value provides a statistically solid ridge regression model while maintaining reasonable prediction accuracy. The condition number is substantially reduced compared to ordinary least squares, indicating improved numerical stability.
-
 #### **Test Points and Predictions**
-
-To illustrate the practical differences between ordinary least squares and ridge regression, we evaluate both models at three test points representing significantly differing predictor values.
-
-```{r ridge_testpoints}
-# Use the same three test points as before
-spain = which(data$Country == "Spain" & data$Year == 2015)
-nigeria = which(data$Country == "Nigeria" & data$Year == 2000)
-iran = which(data$Country == "Iran" & data$Year == 2009)
-
-# OLS predictions (using beta_hat from earlier)
-pred_ols_spain = sum(X[spain, ] * beta_hat)
-pred_ols_nigeria = sum(X[nigeria, ] * beta_hat)
-pred_ols_iran = sum(X[iran, ] * beta_hat)
-
-# Ridge predictions (using beta_ridge from optimal lambda)
-pred_ridge_spain = sum(X[spain, ] * beta_ridge)
-pred_ridge_nigeria = sum(X[nigeria, ] * beta_ridge)
-pred_ridge_iran = sum(X[iran, ] * beta_ridge)
-
-# Comparison table
-comparison = data.frame(
-  Country = c("Spain", "Nigeria", "Iran"),
-  Year = c(2015, 2000, 2009),
-  Actual = round(c(Y[spain], Y[nigeria], Y[iran]), 2),
-  OLS = round(c(pred_ols_spain, pred_ols_nigeria, pred_ols_iran), 2),
-  Ridge = round(c(pred_ridge_spain, pred_ridge_nigeria, pred_ridge_iran), 2),
-  Difference = round(c(pred_ols_spain - pred_ridge_spain,
-                       pred_ols_nigeria - pred_ridge_nigeria,
-                       pred_ols_iran - pred_ridge_iran), 2)
-)
-
-comparison
-```
-
-For Spain in 2015, the OLS model predicted 78.69 years while Ridge predicted 78.71 years, a difference of only 0.02 years. For Nigeria in 2000, OLS predicted 57.86 years compared to Ridge's 57.84 years (difference: 0.02 years). Iran in 2009 showed the same pattern, with OLS at 73.20 years and Ridge at 73.19 years (difference: 0.01 years).
-
-These extremely small differences (all under 0.03 years) suggest that multicollinearity was not severely affecting the OLS estimates in this dataset. This aligns with our earlier VIF analysis, which showed all VIF values well below concerning thresholds. The ridge model's value here is not in dramatically different predictions, but in providing more stable coefficient estimates that would be less sensitive to small changes in the data or to predictions made outside the observed range.
-
-From an application standpoint, these subtle differences would not lead to different policy interpretations for these specific countries. Both models agree that Spain has high life expectancy, Nigeria has substantially lower life expectancy, and Iran falls in the middle range. However, the ridge model's improved numerical stability would be more valuable in scenarios where: - Predictions are made for data points far from the training data - The model is updated frequently with new data - Coefficient stability is critical for understanding long-term trends
 
 ## Logistic Regression Model for High Life Expectancy
 
@@ -733,19 +681,6 @@ We evaluate the model at three test points representing distinct scenarios:
 
 **Interpretation and Threshold Discussion**
 
-We chose a threshold of 0.5, which is the standard cutoff for binary classification. This threshold treats false positives and false negatives as equally costly. However, depending on the application, we might adjust this threshold:
-
--   If the goal is to identify countries needing health interventions, we might lower the threshold (e.g., 0.4) to increase sensitivity, ensuring we don't miss countries with low life expectancy.
--   If the goal is to certify countries as having achieved high life expectancy for policy recognition, we might raise the threshold (e.g., 0.6) to increase specificity and reduce false positives.
-
-The test point predictions illustrate how the model can be used in practice. For example:
-
--   **Test Point 1** (Africa, Least Developed, low resources): The model predicts a low probability of high life expectancy, which aligns with expectations for under-resourced regions.
--   **Test Point 2** (Asia, moderate resources): The model prediction depends on the specific probability value, illustrating how Asian countries with moderate development can vary in outcomes.
--   **Test Point 3** (Europe, high resources): The model likely predicts a high probability of high life expectancy, reflecting the strong health infrastructure in developed European nations.
-
-These predictions could inform targeted public health interventions, resource allocation decisions, or monitoring of progress toward global health equity goals.
-
 ## Conclusion and Discussion of Results
 
 This project built upon our initial exploration of global life expectancy by developing predictive models using multiple linear regression, ridge regression, and logistic regression. Through these analyses, we gained a deeper understanding of how environmental, health, and structural factors work together to shape life expectancy outcomes worldwide.
@@ -764,15 +699,7 @@ The added-variable plots visually reinforced these findings, with obesity showin
 
 **Ridge Regression and Prediction Stability**
 
-Section 2 extended our analysis by implementing ridge regression, which improves numerical stability by shrinking regression coefficients. Through hypertuning, we identified an optimal lambda value that substantially reduced the condition number while maintaining reasonable prediction accuracy. When comparing predictions from OLS and ridge regression at three diverse test points, we found differences typically less than 1-2 years of life expectancy. This suggests that while ridge regression provides improved stability, the original OLS estimates were not severely compromised by multicollinearity—consistent with our VIF analysis.
-
-The subtle differences between methods confirm that both approaches agree on the fundamental relationships in the data, but ridge regression offers a more robust framework for applications requiring high numerical precision or predictions outside the observed data range.
-
 **Logistic Regression for Binary Classification**
-
-Section 3 shifted focus from continuous prediction to binary classification, modeling whether countries achieve above-median life expectancy. By partitioning the data into training (70%) and testing (30%) sets, we developed a logistic regression model that achieved decent accuracy without severe overfitting or underfitting.
-
-The test point evaluations illustrated practical applications: countries with limited resources and least-developed status showed low probabilities of high life expectancy, while well-resourced European nations showed high probabilities. We discussed how threshold selection (0.5 as standard, but adjustable based on application goals) affects the balance between sensitivity and specificity. These predictions could guide public health interventions, resource allocation, and monitoring of global health equity progress.
 
 **Overall Implications and Limitations**
 
