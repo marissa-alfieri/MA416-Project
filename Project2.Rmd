@@ -482,7 +482,7 @@ In comparison, CO$_2$ emissions (0.1188) and health expenditure (0.1215) both ha
 
 ### **Test-Point Predictions**
 
-To show how this model works in real-world contexts, I selected three test points with clearly different life expectancy levels: one from the higher end of the distribution (Spain, 2015), one from the lower end (Nigeria, 2000), and one near the middle (Iran, 2009). These points allow us to see how well the model performs across very different social and health conditions.
+To show how this model works in real-world contexts, we selected three test points with clearly different life expectancy levels: one from the higher end of the distribution (Spain, 2015), one from the lower end (Nigeria, 2000), and one near the middle (Iran, 2009). These points allow us to see how well the model performs across very different social and health conditions.
 
 ```{r testpoints}
 spain = which(data$Country == "Spain" & data$Year == 2015)
@@ -633,7 +633,7 @@ $$ where $\lambda$ is the ridge penalty parameter that controls the amount of sh
 
 #### **Hypertuning Lambda and Choosing the Stability Threshold**
 
-To select the optimal lambda value, we need to balance stability (measured by the condition number $\kappa$) with prediction accuracy (measured by RMSE). I chose a condition number threshold of $\kappa < 50$ as the critical stability criterion. This threshold is statistically justified because:
+To select the optimal lambda value, we need to balance stability (measured by the condition number $\kappa$) with prediction accuracy (measured by RMSE). We chose a condition number threshold of $\kappa < 50$ as the critical stability criterion. This threshold is statistically justified because:
 
 1. **Numerical stability**: Condition numbers above 50 indicate that the matrix is becoming ill-conditioned, meaning small changes in the data can lead to large changes in the coefficient estimates
 2. **Practical balance**: A threshold of 50 provides substantial improvement over OLS (which often has $\kappa > 100$ in the presence of multicollinearity) while avoiding over-regularization that would severely bias the estimates
@@ -924,7 +924,7 @@ These predictions could inform targeted public health interventions, resource al
 
 ## Conclusion
 
-This project took the exploratory work from Project 1 and shifted it toward prediction. Instead of just describing how life expectancy varies across continents or years, I built models to actually predict it—using multiple linear regression, ridge regression, and logistic regression—to see which environmental, health, and structural factors matter most.
+This project took the exploratory work from Project 1 and shifted it toward prediction. Instead of just describing how life expectancy varies across continents or years, we built models to actually predict it—using multiple linear regression, ridge regression, and logistic regression—to see which environmental, health, and structural factors matter most.
 
 **What the regression models showed**
 
@@ -938,7 +938,7 @@ The drop-one analysis backed this up: continent indicators explained the most va
 
 Ridge regression didn't change the predictions much—differences were under 0.03 years for all three test points (Spain, Nigeria, Iran). This confirms what the VIF analysis already suggested: multicollinearity wasn't causing major problems in the OLS model. Ridge's real value here is stability, not better predictions. It would be more useful if you were making predictions far outside the training data or updating the model frequently.
 
-I chose a condition number threshold of κ < 50 because it strikes a good balance: it's low enough to ensure numerical stability without over-penalizing the coefficients. Anything above 50 starts to show signs of ill-conditioning, where small data changes cause big swings in estimates.
+We chose a condition number threshold of κ < 50 because it strikes a good balance: it's low enough to ensure numerical stability without over-penalizing the coefficients. Anything above 50 starts to show signs of ill-conditioning, where small data changes cause big swings in estimates.
 
 **Lasso for variable selection**
 
@@ -948,7 +948,7 @@ Lasso kept all nine predictors in the model at the optimal lambda (1258.925), wh
 
 The logistic model classified countries as having high or low life expectancy (above or below the median). It performed decently on the test set without obvious overfitting. The test point predictions made sense: low-resource countries in Africa had low probabilities of high life expectancy, while well-resourced European countries had high probabilities.
 
-I used a 0.5 threshold, which is standard, but you could adjust it depending on the application. If you're trying to identify countries that need interventions, you'd lower the threshold to catch more at-risk countries (higher sensitivity). If you're certifying countries for policy recognition, you'd raise it to reduce false positives (higher specificity).
+We used a 0.5 threshold, which is standard, but you could adjust it depending on the application. If you're trying to identify countries that need interventions, you'd lower the threshold to catch more at-risk countries (higher sensitivity). If you're certifying countries for policy recognition, you'd raise it to reduce false positives (higher specificity).
 
 **Limitations and takeaways**
 
