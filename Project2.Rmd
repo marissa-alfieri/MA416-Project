@@ -621,11 +621,11 @@ lasso_results = data.frame(
 lasso_results
 ```
 
-The optimal penalty parameter was λ = 1258.925, at which point all nine predictors remained in the model with non-zero coefficients. This indicates that, even with L1 regularization, all predictors contribute meaningfully to explaining life expectancy.
+The optimal penalty parameter was $\lambda$ = 1258.925, where all nine predictors remained in the model with non-zero coefficients. This indicates that, even with L1 regularization, all predictors contribute meaningfully to explaining life expectancy.
 
 ### **Ridge Regression**
 
-Ridge regression adds a penalty term to the least squares estimation that shrinks the regression coefficients toward zero, reducing their variance at the cost of introducing some bias. This approach is particularly useful when multicollinearity is present or when we want to improve prediction stability.
+Ridge regression adds a penalty term to the least squares estimation that shrinks the regression coefficients toward zero, reducing their variance but introducing some bias. This approach is useful when multicollinearity is present or when we want to improve prediction stability.
 
 The ridge regression estimator is given by: $$
 \hat{\beta}_{\text{ridge}} = (X^TX + \lambda I)^{-1}X^TY
@@ -697,48 +697,6 @@ The optimal lambda value provides a statistically solid ridge regression model w
 
 #### **Test Points and Predictions**
 
-To illustrate the practical differences between ordinary least squares and ridge regression, we evaluate both models at three test points representing significantly differing predictor values.
-
-```{r ridge_testpoints}
-# Use the same three test points as before
-spain = which(data$Country == "Spain" & data$Year == 2015)
-nigeria = which(data$Country == "Nigeria" & data$Year == 2000)
-iran = which(data$Country == "Iran" & data$Year == 2009)
-
-# OLS predictions (using beta_hat from earlier)
-pred_ols_spain = sum(X[spain, ] * beta_hat)
-pred_ols_nigeria = sum(X[nigeria, ] * beta_hat)
-pred_ols_iran = sum(X[iran, ] * beta_hat)
-
-# Ridge predictions (using beta_ridge from optimal lambda)
-pred_ridge_spain = sum(X[spain, ] * beta_ridge)
-pred_ridge_nigeria = sum(X[nigeria, ] * beta_ridge)
-pred_ridge_iran = sum(X[iran, ] * beta_ridge)
-
-# Comparison table
-comparison = data.frame(
-  Country = c("Spain", "Nigeria", "Iran"),
-  Year = c(2015, 2000, 2009),
-  Actual = round(c(Y[spain], Y[nigeria], Y[iran]), 2),
-  OLS = round(c(pred_ols_spain, pred_ols_nigeria, pred_ols_iran), 2),
-  Ridge = round(c(pred_ridge_spain, pred_ridge_nigeria, pred_ridge_iran), 2),
-  Difference = round(c(pred_ols_spain - pred_ridge_spain,
-                       pred_ols_nigeria - pred_ridge_nigeria,
-                       pred_ols_iran - pred_ridge_iran), 2)
-)
-
-comparison
-```
-
-For Spain in 2015, the OLS model predicted 78.69 years while Ridge predicted 78.71 years, a difference of only 0.02 years. For Nigeria in 2000, OLS predicted 57.86 years compared to Ridge's 57.84 years (difference: 0.02 years). Iran in 2009 showed the same pattern, with OLS at 73.20 years and Ridge at 73.19 years (difference: 0.01 years).
-
-These extremely small differences (all under 0.03 years) suggest that multicollinearity was not severely affecting the OLS estimates in this dataset. This aligns with our earlier VIF analysis, which showed all VIF values well below concerning thresholds. The ridge model's value here is not in dramatically different predictions, but in providing more stable coefficient estimates that would be less sensitive to small changes in the data or to predictions made outside the observed range.
-
-From an application standpoint, these subtle differences would not lead to different policy interpretations for these specific countries. Both models agree that Spain has high life expectancy, Nigeria has substantially lower life expectancy, and Iran falls in the middle range. However, the ridge model's improved numerical stability would be more valuable in scenarios where:
-- Predictions are made for data points far from the training data
-- The model is updated frequently with new data
-- Coefficient stability is critical for understanding long-term trends
-
 ## Logistic Regression Model for High Life Expectancy
 
 In this section, we shift from predicting continuous life expectancy values to classifying countries as having "high" or "low" life expectancy based on whether they exceed the global median. This binary classification allows us to identify which factors are most strongly associated with achieving above-average life expectancy outcomes.
@@ -754,37 +712,7 @@ The response variable is a binary indicator of whether a country's life expectan
 **Model Construction and Data Partitioning**
 
 ```{r logistic_setup}
-# Create binary response: 1 if life expectancy > median, 0 otherwise
-median_life = median(Y)
-Y_binary = ifelse(Y > median_life, 1, 0)
 
-# Create training and testing partitions (70/30 split)
-set.seed(123)
-n_total = length(Y_binary)
-train_indices = sample(1:n_total, size = floor(0.7 * n_total))
-test_indices = setdiff(1:n_total, train_indices)
-
-# Training data
-Y_train = Y_binary[train_indices]
-X_train = X[train_indices, ]
-X1_train = X1[train_indices]
-X2_train = X2[train_indices]
-X3_train = X3[train_indices]
-C_train = C[train_indices, , drop = FALSE]
-D_train = if (is.matrix(D)) D[train_indices, , drop = FALSE] else D[train_indices]
-
-# Testing data
-Y_test = Y_binary[test_indices]
-X_test = X[test_indices, ]
-X1_test = X1[test_indices]
-X2_test = X2[test_indices]
-X3_test = X3[test_indices]
-C_test = C[test_indices, , drop = FALSE]
-D_test = if (is.matrix(D)) D[test_indices, , drop = FALSE] else D[test_indices]
-
-cat("Training set size:", length(Y_train), "\n")
-cat("Testing set size:", length(Y_test), "\n")
-cat("Median life expectancy:", round(median_life, 2), "\n")
 ```
 
 **Fitting the Logistic Regression Model**
@@ -794,51 +722,13 @@ The logistic regression model relates the log-odds of high life expectancy to th
 $$ where $p$ is the probability of having life expectancy above the median.
 
 ```{r logistic_model}
-# Fit logistic regression on training data
-train_data = data.frame(
-  Y = Y_train,
-  CO2 = X1_train,
-  Health = X2_train,
-  Obesity = X3_train,
-  C_train,
-  LD = D_train
-)
 
-logit_model = glm(Y ~ ., data = train_data, family = binomial(link = "logit"))
-summary(logit_model)
 ```
 
 **Model Assessment on Testing Data**
 
 ```{r logistic_test}
-# Predict on test data
-test_data = data.frame(
-  CO2 = X1_test,
-  Health = X2_test,
-  Obesity = X3_test,
-  C_test,
-  LD = D_test
-)
 
-predicted_probs = predict(logit_model, newdata = test_data, type = "response")
-
-# Choose threshold (0.5 is standard, but we can optimize)
-threshold = 0.5
-predicted_class = ifelse(predicted_probs > threshold, 1, 0)
-
-# Confusion matrix
-confusion = table(Predicted = predicted_class, Actual = Y_test)
-confusion
-
-# Calculate accuracy
-accuracy = sum(diag(confusion)) / sum(confusion)
-sensitivity = confusion[2,2] / sum(confusion[,2])  # True positive rate
-specificity = confusion[1,1] / sum(confusion[,1])  # True negative rate
-
-cat("\nModel Performance on Test Set:\n")
-cat("Accuracy:", round(accuracy, 4), "\n")
-cat("Sensitivity:", round(sensitivity, 4), "\n")
-cat("Specificity:", round(specificity, 4), "\n")
 ```
 
 The model achieves decent accuracy on the test set, indicating that it is neither severely overfitted nor underfitted. The sensitivity and specificity values show how well the model identifies countries with high versus low life expectancy.
@@ -848,63 +738,7 @@ The model achieves decent accuracy on the test set, indicating that it is neithe
 We evaluate the model at three test points representing distinct scenarios:
 
 ```{r logistic_testpoints}
-# Test point 1: Low CO2, low health expenditure, low obesity (Africa, LD)
-test_point_1 = data.frame(
-  CO2 = 2.0,
-  Health = 500,
-  Obesity = 5.0,
-  ContinentAsia = 0,
-  ContinentEurope = 0,
-  ContinentNorth.America = 0,
-  ContinentOceania = 0,
-  ContinentSouth.America = 0,
-  LD = 1
-)
 
-# Test point 2: Medium values (Asia, not LD)
-test_point_2 = data.frame(
-  CO2 = 6.0,
-  Health = 2000,
-  Obesity = 15.0,
-  ContinentAsia = 1,
-  ContinentEurope = 0,
-  ContinentNorth.America = 0,
-  ContinentOceania = 0,
-  ContinentSouth.America = 0,
-  LD = 0
-)
-
-# Test point 3: High CO2, high health expenditure, high obesity (Europe, not LD)
-test_point_3 = data.frame(
-  CO2 = 12.0,
-  Health = 5000,
-  Obesity = 30.0,
-  ContinentAsia = 0,
-  ContinentEurope = 1,
-  ContinentNorth.America = 0,
-  ContinentOceania = 0,
-  ContinentSouth.America = 0,
-  LD = 0
-)
-
-# Predict probabilities
-prob_1 = predict(logit_model, newdata = test_point_1, type = "response")
-prob_2 = predict(logit_model, newdata = test_point_2, type = "response")
-prob_3 = predict(logit_model, newdata = test_point_3, type = "response")
-
-# Classify using threshold
-class_1 = ifelse(prob_1 > threshold, "High", "Low")
-class_2 = ifelse(prob_2 > threshold, "High", "Low")
-class_3 = ifelse(prob_3 > threshold, "High", "Low")
-
-# Results table
-test_results = data.frame(
-  Test_Point = c("Low (Africa, LD)", "Medium (Asia)", "High (Europe)"),
-  Probability = round(c(prob_1, prob_2, prob_3), 4),
-  Classification = c(class_1, class_2, class_3)
-)
-
-test_results
 ```
 
 **Interpretation and Threshold Discussion**
@@ -923,6 +757,7 @@ The test point predictions illustrate how the model can be used in practice. For
 These predictions could inform targeted public health interventions, resource allocation decisions, or monitoring of progress toward global health equity goals.
 
 ## Conclusion
+## Conclusion and Discussion of Results
 
 This project took the exploratory work from Project 1 and shifted it toward prediction. Instead of just describing how life expectancy varies across continents or years, we built models to actually predict it—using multiple linear regression, ridge regression, and logistic regression—to see which environmental, health, and structural factors matter most.
 
@@ -951,6 +786,9 @@ The logistic model classified countries as having high or low life expectancy (a
 We used a 0.5 threshold, which is standard, but you could adjust it depending on the application. If you're trying to identify countries that need interventions, you'd lower the threshold to catch more at-risk countries (higher sensitivity). If you're certifying countries for policy recognition, you'd raise it to reduce false positives (higher specificity).
 
 **Limitations and takeaways**
+**Logistic Regression for Binary Classification**
+
+**Overall Implications and Limitations**
 
 The biggest limitations are the violated independence assumption (repeated country measurements over time), some heteroscedasticity, and the fact that this is all observational data—so causal claims should be made carefully. There could be unmeasured confounders or reverse causality at play.
 
@@ -959,8 +797,6 @@ Still, the models work well for prediction and give clear insights for policy. A
 Future work could use time-series methods to handle the temporal structure properly, test for nonlinear relationships, or add more variables (economic indicators, education, healthcare access). It would also be interesting to see how these relationships changed from 2000 to 2015—whether global health equity improved or certain gaps widened.
 
 ## Appendix: Custom Functions
-
-This appendix contains all custom functions used throughout the analysis, ensuring full transparency and reproducibility of results.
 
 ### Function 1: partial_slope – Partial Slope
 
