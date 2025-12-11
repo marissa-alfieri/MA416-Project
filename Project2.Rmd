@@ -1,6 +1,7 @@
 ---
-title: "Project 2"
-date: "2025-12-04"
+title: "Project 2: Predicting Life Expectancy"
+author: "Marissa Alfieri, Jenny Zheng, Letitia Caspersen"
+date: "2025-12-10"
 output:
   pdf_document:
     latex_engine: xelatex
@@ -528,7 +529,7 @@ drop1_table
 
 The drop-one results show that the continent indicators account for the largest share of model explanatory power, with Europe and Asia contributing the greatest reductions in SSM (approximately 19% and 15% of the full SSM, respectively). These findings suggest that geographic region is a dominant determinant of life expectancy in this dataset.
 
-Among the continuous predictors, obesity prevalence has the strongest unique effect (ΔSSM ≈ 4.86%), whereas both CO₂ emissions and health expenditure account for less than 1% of the unique model sum-of-squares. The Least Developed classification shows the smallest reduction in SSM when removed (≈ 0.33%), indicating a minimal independent contribution once other predictors are controlled.
+Among the continuous predictors, obesity prevalence has the strongest unique effect (ΔSSM $\approx$ 4.86%), whereas both CO$_2$ emissions and health expenditure account for less than 1% of the unique model sum-of-squares. The Least Developed classification shows the smallest reduction in SSM when removed ( $\approx$ 0.33%), indicating a minimal independent contribution once other predictors are controlled.
 
 #### 2. Added-Variable (AV) Plots
 
@@ -577,7 +578,7 @@ b3 = mean(fit1245$sres)- m1*mean(fit3_1245$sres)
 abline(b3, m3, col="red", lwd=3)
 ```
 
-The slopes reinforce the conclusions drawn from the drop-one analysis. Obesity shows the largest partial slope ($\approx$ 0.336), indicating a substantial independent relationship with life expectancy after controlling for all other predictors. CO₂ emissions and health expenditure display comparatively small slopes ( \$\\approx\$ 0.118–0.121), consistent with their weak drop-one effects.
+The slopes reinforce the conclusions drawn from the drop-one analysis. Obesity shows the largest partial slope ($\approx$ 0.336), indicating a substantial independent relationship with life expectancy after controlling for all other predictors. CO$_2$ emissions and health expenditure display comparatively small slopes ( $\approx$ 0.118–0.121), consistent with their weak drop-one effects.
 
 #### **3. Lasso Regression Penalization Analysis**
 
@@ -674,7 +675,7 @@ In this section, we shift from predicting continuous life expectancy values to c
 >
 > $\ H_a: \text{At least one } \beta_j \neq 0$
 
-The response variable is a binary indicator of whether a country's life expectancy exceeds the median value. The predictors include CO₂ emissions, health expenditure, adult obesity, and continent.
+The response variable is a binary indicator of whether a country's life expectancy exceeds the median value. The predictors include CO$_2$ emissions, health expenditure, adult obesity, and continent.
 
 **Fitting the Logistic Regression Model**
 
@@ -700,7 +701,7 @@ X_test = X[test_indices, ]
 Y_test = Y_binary[test_indices]
 ```
 
-We fitted the logistic regression model using base R's `glm()` function with a binomial family and logit link. The model estimates how each predictor affects the log-odds of having high life expectancy.
+We fitted the logistic regression model with a binomial family and logit link. The model estimates how each predictor affects the log-odds of having high life expectancy.
 
 ```{r logistic_fit}
 logit_data_train = data.frame(
@@ -822,9 +823,9 @@ This project took the exploratory work from Project 1 and shifted it toward pred
 
 The multiple linear regression model worked reasonably well, though not perfectly. The linearity and normality assumptions held up pretty well, but independence was clearly violated because countries appear multiple times across years, creating a time-based dependency. There was also some mild heteroscedasticity, meaning the error variance wasn't totally constant. Still, the model gave useful results.
 
-Multicollinearity wasn't a major issue, all the VIF values came back low, so the coefficient estimates should be stable. The partial slope analysis showed that adult obesity had the strongest relationship with life expectancy (0.3353), followed by continent (0.2195). CO\$\_2\$ emissions (0.1188) and health expenditure (0.1215) both had smaller effects, and least developed status had a weak negative relationship (−0.0917).
+Multicollinearity wasn't a major issue, all the VIF values came back low, so the coefficient estimates should be stable. The partial slope analysis showed that adult obesity had the strongest relationship with life expectancy (0.3353), followed by continent (0.2195). CO$_2$ emissions (0.1188) and health expenditure (0.1215) both had smaller effects, and least developed status had a weak negative relationship (−0.0917).
 
-The drop-one analysis backed this up: continent indicators explained the most variation, especially Europe and Asia. Obesity was the strongest continuous predictor (ΔSSM $\approx$ 4.86%), while CO\$\_2\$ and health spending barely moved the needle (\< 1% each). The AV plots confirmed the same pattern visually.
+The drop-one analysis backed this up: continent indicators explained the most variation, especially Europe and Asia. Obesity was the strongest continuous predictor (ΔSSM $\approx$ 4.86%), while CO$_2$ and health spending barely moved the needle (\< 1% each). The AV plots confirmed the same pattern visually.
 
 **Ridge regression for stability**
 
@@ -846,7 +847,7 @@ We used a 0.5 threshold, which is standard, but you could adjust it depending on
 
 The biggest limitations are the violated independence assumption (repeated country measurements over time), some heteroscedasticity, and the fact that this is all observational data, so causal claims should be made carefully.
 
-Still, the models work well for prediction and give clear insights for policy. Adult obesity and geographic region are the strongest predictors, health spending has a moderate effect, and CO\$\_2\$ emissions show up weakly once you control for everything else. That weak CO\$\_2\$ effect might just mean the relationship is more indirect, climate and environmental factors likely influence life expectancy through other pathways that aren't captured here.
+Still, the models work well for prediction and give clear insights for policy. Adult obesity and geographic region are the strongest predictors, health spending has a moderate effect, and CO$_2$ emissions show up weakly once you control for everything else. That weak CO$_2$ effect might just mean the relationship is more indirect, climate and environmental factors likely influence life expectancy through other pathways that aren't captured here.
 
 Future work could use time-series methods to handle the temporal structure properly, test for nonlinear relationships, or add more variables (economic indicators, education, healthcare access). It would also be interesting to see how these relationships changed from 2000 to 2015, whether global health equity improved or certain gaps widened.
 
